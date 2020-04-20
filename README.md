@@ -17,6 +17,14 @@ It can be integrated into any framework, like Laravel, to enable Base62x support
 [![Coverage Status](https://coveralls.io/repos/github/mfonte/base62x/badge.svg)](https://coveralls.io/github/mfonte/base62x)
 [![Scrutinizer Code Quality](https://scrutinizer-ci.com/g/mattiabasone/PagOnline/badges/quality-score.png?b=master)](https://scrutinizer-ci.com/g/mfonte/base62x/?branch=master)
 
+### Installation
+
+Simple enough.
+
+`composer require mfonte/base62x`
+
+Required **PHP >= 7.0.0** and php's **gzip** support for gzip compression. More to come, as the library gets other compression algos and encryption.
+
 ### Use cases
 
 Base64 is notoriously bad to be used in _GET_ strings. With this library, you can safely encode (and compress) and pass your data via **GET parameters**.
