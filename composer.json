@@ -1,0 +1,45 @@
+{
+    "name": "mfonte/base62x",
+    "description": "A Base62x library for Laravel, that supports encoding/decoding of strings, arrays, objects, resources. Plus, it also supports Huffmann compression",
+    "keywords": [
+        "base62x",
+        "encoding",
+        "laravel",
+        "compression",
+        "huffmann"
+    ],
+    "type": "library",
+    "license": "Apache-2.0",
+    "authors": [
+        {
+            "name": "Maurizio Fonte",
+            "email": "fonte.maurizio@gmail.com"
+        }
+    ],
+    "minimum-stability": "stable",
+    "autoload": {
+        "psr-4": {
+            "Mfonte\\Base62x\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Mfonte\\Base62x\\Test\\": "tests/"
+        }
+    },
+    "require": {
+        "php": ">=7.0.0"
+    },
+    "require-dev": {
+        "friendsofphp/php-cs-fixer": "^2.16",
+        "phpunit/phpunit": "^8.5",
+        "phpstan/phpstan": "^0.12.18",
+        "php-coveralls/php-coveralls": "^2.2",
+        "orchestra/testbench": "^5.1"
+    },
+    "scripts": {
+        "fix": "@php vendor/bin/php-cs-fixer fix",
+        "test": "@php vendor/bin/phpunit --colors=always",
+        "analyse": "@php vendor/bin/phpstan analyse src --level 4"
+    }
+}
