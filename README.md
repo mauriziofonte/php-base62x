@@ -135,6 +135,10 @@ try {
     $gzip_deflate_encoded = Base62x::encode($payload)->compress('gzip', 'deflate')->get();
     $gzip_gzip_encoded = Base62x::encode($payload)->compress('gzip', 'gzip')->get();
     $huffman_encoded = Base62x::encode($payload)->compress('huffman')->get();
+
+    // you DON'T NEED to call decompress() because the compression method is "saved" inside the
+    // encoded payload into a "magic string"
+    $decoded = Base62x::decode($gzip_zlib_encoded)->get();
 }
 catch(Exception $ex) {
     // One Exception of Mfonte/Base62x/Exception/EncodeException
@@ -143,10 +147,45 @@ catch(Exception $ex) {
 }
 ```
 
+### Encryption
+
+As of version 1.2 this library support **encryption**.
+
+The encryption **can be chained** with compression.
+
+```php
+<?php
+use Mfonte\Base62x\Base62x;
+
+$payload = 'my_payload';
+$key = 'a_very_secret_string';
+
+try {
+    $encoded_and_crypted = Base62x::encode($payload)->encrypt($key)->get();
+    $encoded_and_compressed_and_crypted = Base62x::encode($payload)->encrypt($key)->compress()->get();
+
+    // to perform decryption, you must pass in the original $key
+    $decrypted = Base62x::decode($payload)->decrypt($key)->get();
+}
+catch(Exception $ex) {
+    // One Exception of Mfonte/Base62x/Exception/EncodeException
+    // or Mfonte/Base62x/Exception/InvalidParam
+    // or Mfonte/Base62x/Exception/CompressionException
+    // or Mfonte/Base62x/Exception/CryptException
+}
+```
+
+### Testing
+
+Simply run `composer install` over this module's installation directory.
+
+Then, run `./vendor/bin/phpunit --debug tests`
+
+Some tests **may fail** as **testEncodingWithAllAvailableEncryptionAlgorithms** performs a check over all available **openssl_get_cipher_methods()** installed on your environment. A possible example of failure is `Encryption method "id-aes128-CCM" is either unsupported in your PHP installation or not a valid encryption algorithm.`
+
 ### TODO
 
 -   [ ] Add **Bzip2 compression**
--   [ ] Add **Encrytion** over encoded payloads
 
 ### Contributing
 

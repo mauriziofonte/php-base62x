@@ -2,10 +2,13 @@
 
 namespace Mfonte\Base62x;
 
+use Exception;
 use Mfonte\Base62x\Exception\InvalidParam;
+use Mfonte\Base62x\Exception\CryptException;
 use Mfonte\Base62x\Exception\DecodeException;
 use Mfonte\Base62x\Exception\EncodeException;
 use Mfonte\Base62x\Encoding\Base62x as Encoder;
+use Mfonte\Base62x\Encryption\Crypt as Crypter;
 use Mfonte\Base62x\Compression\Gzip\GzipCompression as GzipCompressor;
 use Mfonte\Base62x\Compression\Huffman\HuffmanCoding as HuffmanCompressor;
 
@@ -43,6 +46,21 @@ class Base62x
      * @var bool
      */
     protected $compressEncoding = null;
+
+    /**
+     * The encryption method (algorithm) to be used in case of password-protected encoding.
+     * This variable *must* be a valid method supported in openssl_get_cipher_methods().
+     *
+     * @var string
+     */
+    protected $cryptMethod;
+
+    /**
+     * The encrypt/decrypt key (password) to be used to protect/unprotect the encoding.
+     *
+     * @var mixed
+     */
+    protected $cryptKey;
 
     /**
      * Wheter the payload needs to be decompressed after the decoding. Defaults to false.
@@ -109,7 +127,10 @@ class Base62x
         if (!\array_key_exists($algo, $this->_validCompressionAlgorithms)) {
             throw new InvalidParam('algo', __FUNCTION__, __CLASS__);
         }
-        if (\is_array($this->_validCompressionAlgorithms[$algo]) && !\in_array($encoding, $this->_validCompressionAlgorithms[$algo], true)) {
+        if (
+            \is_array($this->_validCompressionAlgorithms[$algo]) &&
+            !\in_array($encoding, $this->_validCompressionAlgorithms[$algo], true)
+        ) {
             throw new InvalidParam('encoding', __FUNCTION__, __CLASS__);
         } elseif (!\is_array($this->_validCompressionAlgorithms[$algo])) {
             $encoding = null;
@@ -131,6 +152,39 @@ class Base62x
     public function decompress(): self
     {
         return $this;
+    }
+
+    /**
+     * Sets the encryption key (password) and method (algorithm).
+     *
+     * @param string $key    A password for your encoded base62x output string
+     * @param string $method A valid openssl cypher method as supported in your environment (openssl_get_cipher_methods)
+     *
+     * @return \Mfonte\Base62x\Base62x
+     */
+    public function encrypt(string $key, string $method = 'aes-128-ctr'): self
+    {
+        if (!\function_exists('openssl_get_cipher_methods')) {
+            throw new CryptException('openssl_get_cipher_methods unsupported in your PHP installation');
+        }
+        if (!\in_array(\mb_strtolower($method), \openssl_get_cipher_methods(), true)) {
+            throw new CryptException('Encryption method "'.$method.'" is either unsupported in your PHP installation or not a valid encryption algorithm.');
+        }
+
+        $this->cryptMethod = \mb_strtolower($method);
+        $this->cryptPassword = $key;
+
+        return $this;
+    }
+
+    /**
+     * Sets the encryption key (password) and method (algorithm).
+     *
+     * @see self::encrypt
+     */
+    public function decrypt(string $key, string $method = 'aes-128-ctr'): self
+    {
+        return $this->encrypt($key, $method);
     }
 
     /**
@@ -163,6 +217,9 @@ class Base62x
      */
     private function _encode(string $payload): string
     {
+        if ($this->cryptKey && $this->cryptMethod) {
+            $payload = $this->_performEncryption($payload);
+        }
         if ($this->compressAlgorithm) {
             $payload = $this->_performCompress($payload);
         }
@@ -185,10 +242,16 @@ class Base62x
             throw new DecodeException();
         }
 
+        // remove the magic string for Compression
         $data = $this->_getCompressionFootprintAndSanitizePayload($decoded);
 
         if ($data['compression_algo']) {
             $decoded = $this->_performUncompress($data['payload'], $data['compression_algo'], $data['compression_encoding']);
+        }
+
+        // eventually perform decryption
+        if ($this->cryptKey && $this->cryptMethod) {
+            $decoded = $this->_performDecryption($decoded);
         }
 
         return $decoded;
@@ -236,14 +299,61 @@ class Base62x
     }
 
     /**
-     * Gets a "magic string" that will be appendend at beginning of the compressed payload,
+     * Performs the actual encryption before chaining it into the Base62x encoder.
+     *
+     * @param mixed $payload
+     */
+    private function _performEncryption(string $payload): ?string
+    {
+        try {
+            $crypt = new Crypter([
+                'key' => $this->cryptKey,
+                'method' => $this->cryptMethod,
+            ]);
+
+            return $crypt->cipher($payload)->encrypt();
+        } catch (Exception $ex) {
+            throw new CryptException('Cannot encrypt the payload: '.$ex->getMessage());
+        }
+
+        return null;
+    }
+
+    /**
+     * Decrypts the payload, that was prior encrypted using the on-board encrypter.
+     */
+    private function _performDecryption(string $payload): string
+    {
+        if (empty($this->cryptKey)) {
+            throw new CryptException('Cannot decrypt the payload without a valid cryptKey');
+        }
+        if (empty($this->cryptKey)) {
+            throw new CryptException('Cannot decrypt the payload without a valid cryptMethod');
+        }
+
+        try {
+            $crypt = new Crypter([
+                'key' => $this->cryptKey,
+                'method' => $this->cryptMethod,
+            ]);
+
+            return $crypt->cipher($payload)->decrypt();
+        } catch (Exception $ex) {
+            throw new CryptException('Cannot decrypt the payload: '.$ex->getMessage());
+        }
+
+        return null;
+    }
+
+    /**
+     * Prepares a "magic string" that will be appendend at beginning of the compressed payload,
      * prior of chaining it into the Base62x encoder.
      * Doing so, the decode method will automagically uncompress the encoded payload, so the subsequent "decode"
      * can understand which compression algo+encoding was originally used.
      */
     private function _createCompressionFootprint(): string
     {
-        return '['.\base64_encode(\implode(',', [$this->compressAlgorithm, $this->compressEncoding])).']';
+        return '[MFB62X.COMPRESS.'.\base64_encode(\implode(',', [$this->compressAlgorithm, $this->compressEncoding])).']';
     }
 
     /**
@@ -253,7 +363,7 @@ class Base62x
     private function _getCompressionFootprintAndSanitizePayload(string $payload): array
     {
         $compression_algo = $compression_encoding = null;
-        if (\preg_match('/^\[([A-Za-z0-9+\/]+={0,2})\]/', $payload, $match)) {
+        if (\preg_match('/^\[MFB62X\.COMPRESS\.([A-Za-z0-9+\/]+={0,2})\]/', $payload, $match)) {
             list($compression_algo, $compression_encoding) = \explode(',', \base64_decode($match[1], true));
             $payload = \preg_replace('/^'.\preg_quote($match[0]).'/', '', $payload, 1);
         }
