@@ -86,7 +86,7 @@ class Base62x
             // string
             $ascidx = [];
             $ascrlist = [];
-            $inputArr = \str_split($input);
+            $inputArr = \mb_str_split($input);
             $inputlen = \count($inputArr);
             //if(!isset($ascidx)){ $ascidx = array(); }
             //if(!isset($ascrlist)){ $ascrlist = array(); }
@@ -235,7 +235,7 @@ class Base62x
             // string
             $ascidx = [];
             $ascrlist = [];
-            $inputArr = \str_split($input);
+            $inputArr = \mb_str_split($input);
             $inputlen = \count($inputArr);
             $setResult = self::setAscii($codetype, $inputArr, $ascidx, $ascmax, $asclist, $ascrlist);
             $asctype = $setResult['asctype'];
@@ -321,7 +321,7 @@ class Base62x
                 $ridx_in['z'] = 61;
                 $ridx = $ridx_in;
             }
-            $iArr = \str_split($inum);
+            $iArr = \mb_str_split($inum);
             $iArr = \array_reverse($iArr);
             $arrLen = \count($iArr);
             $xnum = 0;
@@ -338,7 +338,7 @@ class Base62x
                     \error_log(__FILE__.": xxdec found out of radix:$tmpi for base:$ibase.\n");
                     $tmpi = $ibase - 1;
                 }
-                $onum = $onum + $tmpi * \pow($ibase, ($i - $xnum));
+                $onum = $onum + $tmpi * $ibase ** ($i - $xnum);
                 //error_log("\t".__FILE__.": xx2dec ibase:$ibase i:$i c:".$iArr[$i]." tmpi:$tmpi onum:$onum xnum:$xnum");
             }
             if (\mb_strpos($onum, 'E') !== false) {

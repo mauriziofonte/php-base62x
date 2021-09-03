@@ -3,12 +3,13 @@
 namespace Mfonte\Base62x\Encryption;
 
 use Mfonte\Base62x\Exception\CryptException;
-use Mfonte\Base62x\Encryption\Cipher\Decrypt;
-use Mfonte\Base62x\Encryption\Cipher\Encrypt;
+use Mfonte\Base62x\Encryption\Cypher\Decrypt;
+use Mfonte\Base62x\Encryption\Cypher\Encrypt;
 
 class Crypt
 {
-    protected $method = 'aes-128-ctr'; // default cipher method if none supplied. see: http://php.net/openssl_get_cipher_methods for more.
+    // default cipher method if none supplied. see: http://php.net/openssl_get_cipher_methods for more.
+    protected $method = 'aes-128-ctr';
 
     private $key;
 

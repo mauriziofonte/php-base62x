@@ -1,6 +1,6 @@
 <?php
 
-namespace Mfonte\Base62x\Encryption\Cipher;
+namespace Mfonte\Base62x\Encryption\Cypher;
 
 class Decrypt
 {
