@@ -108,7 +108,7 @@ class Base62x
             throw new InvalidParam('payload', __FUNCTION__, __CLASS__, 'The payload cannot be an object');
         } elseif (\is_array($payload)) {
             // if the payload is an array, perform here and now the translation to a serialized string
-            $payload = \serialize($payload);
+            $payload = serialize($payload);
         }
 
         $this->payload = $payload;
@@ -124,15 +124,28 @@ class Base62x
      */
     public function compress($algo = 'gzip', $encoding = 'zlib'): self
     {
-        if (!\array_key_exists($algo, $this->_validCompressionAlgorithms)) {
+        // sanity check for bad $algo
+        if (
+            !\array_key_exists($algo, $this->_validCompressionAlgorithms) &&
+            !\in_array($algo, $this->_validCompressionAlgorithms, true)
+        ) {
             throw new InvalidParam('algo', __FUNCTION__, __CLASS__);
         }
+
+        // sanity check for bad $encoding
         if (
+            \array_key_exists($algo, $this->_validCompressionAlgorithms) &&
             \is_array($this->_validCompressionAlgorithms[$algo]) &&
             !\in_array($encoding, $this->_validCompressionAlgorithms[$algo], true)
         ) {
             throw new InvalidParam('encoding', __FUNCTION__, __CLASS__);
-        } elseif (!\is_array($this->_validCompressionAlgorithms[$algo])) {
+        }
+
+        // make sure we nullify the $encoding if we don't have one
+        if (
+            !\array_key_exists($algo, $this->_validCompressionAlgorithms) ||
+            !\is_array($this->_validCompressionAlgorithms[$algo])
+        ) {
             $encoding = null;
         }
 
@@ -167,12 +180,12 @@ class Base62x
         if (!\function_exists('openssl_get_cipher_methods')) {
             throw new CryptException('openssl_get_cipher_methods unsupported in your PHP installation');
         }
-        if (!\in_array(\mb_strtolower($method), \openssl_get_cipher_methods(), true)) {
+        if (!\in_array(mb_strtolower($method), openssl_get_cipher_methods(), true)) {
             throw new CryptException('Encryption method "'.$method.'" is either unsupported in your PHP installation or not a valid encryption algorithm.');
         }
 
-        $this->cryptMethod = \mb_strtolower($method);
-        $this->cryptPassword = $key;
+        $this->cryptMethod = mb_strtolower($method);
+        $this->cryptKey = $key;
 
         return $this;
     }
@@ -203,7 +216,7 @@ class Base62x
                 $decoded = $this->_decode($this->payload);
 
                 // decoded payload can be a serialized array: if so, we return the original representation
-                if ($this->_isSerializedString($decoded) && ($unserialized = @\unserialize($decoded)) !== false) {
+                if ($this->_isSerializedString($decoded) && ($unserialized = @unserialize($decoded)) !== false) {
                     return $unserialized;
                 }
 
@@ -278,20 +291,23 @@ class Base62x
             throw new EncodeException();
         }
 
-        return $this->_createCompressionFootprint().$compressed;
+        // create the compression footprint, to avoid the decompress() on Base62x::decode()
+        $footprint = $this->_createCompressionFootprint();
+
+        return implode('', [$footprint, $compressed]);
     }
 
     /**
      * Decompresses the payload, that was prior compressed using one of the available compression types.
      */
-    private function _performUncompress(string $payload, string $compression_algo, ?string $compression_encoding): string
+    private function _performUncompress(string $compressed_payload, string $compression_algo, ?string $compression_encoding): string
     {
         switch ($compression_algo) {
             case 'gzip':
-                $payload = GzipCompressor::decode($payload, $compression_encoding);
+                $payload = GzipCompressor::decode($compressed_payload, $compression_encoding);
             break;
             case 'huffman':
-                $payload = HuffmanCompressor::decode($payload);
+                $payload = HuffmanCompressor::decode($compressed_payload);
             break;
         }
 
@@ -327,7 +343,7 @@ class Base62x
         if (empty($this->cryptKey)) {
             throw new CryptException('Cannot decrypt the payload without a valid cryptKey');
         }
-        if (empty($this->cryptKey)) {
+        if (empty($this->cryptMethod)) {
             throw new CryptException('Cannot decrypt the payload without a valid cryptMethod');
         }
 
@@ -353,7 +369,7 @@ class Base62x
      */
     private function _createCompressionFootprint(): string
     {
-        return '[MFB62X.COMPRESS.'.\base64_encode(\implode(',', [$this->compressAlgorithm, $this->compressEncoding])).']';
+        return '[MFB62X.COMPRESS.'.base64_encode(implode(',', [$this->compressAlgorithm, $this->compressEncoding])).']';
     }
 
     /**
@@ -363,28 +379,58 @@ class Base62x
     private function _getCompressionFootprintAndSanitizePayload(string $payload): array
     {
         $compression_algo = $compression_encoding = null;
-        if (\preg_match('/^\[MFB62X\.COMPRESS\.([A-Za-z0-9+\/]+={0,2})\]/', $payload, $match)) {
-            list($compression_algo, $compression_encoding) = \explode(',', \base64_decode($match[1], true));
-            $payload = \preg_replace('/^'.\preg_quote($match[0]).'/', '', $payload, 1);
+        $pos_start = mb_strpos($payload, '[MFB62X.COMPRESS.');
+        $pos_end = mb_strpos($payload, ']');
+
+        if ($pos_start === 0 && $pos_end > 0) {
+            $footprint = mb_substr($payload, 0, $pos_end + 1);
+            $compression_footprint = str_replace(['[', 'MFB62X.COMPRESS.', ']'], '', $footprint);
+
+            $compression_params = @base64_decode($compression_footprint, true);
+            if ($compression_params && \count(explode(',', $compression_params)) === 2) {
+                $compression_params = explode(',', $compression_params);
+                $compression_algo = $compression_params[0];
+                $compression_encoding = $compression_params[1];
+            }
+
+            // clean the payload, removing the compression footprint
+            $payload = mb_substr($payload, $pos_end + 1);
         }
 
         // some sanity checks to avoid tampering with the payload and cause bad behaviour or worse
-        if (!empty($compression_algo) && !\array_key_exists($compression_algo, $this->_validCompressionAlgorithms)) {
-            throw new DecodeException();
-        }
+        // sanity check for bad $algo
         if (
-            !empty($compression_algo) &&
-            \array_key_exists($compression_algo, $this->_validCompressionAlgorithms) &&
-            !empty($compression_encoding) &&
-            !\in_array($compression_encoding, $this->_validCompressionAlgorithms[$compression_algo], true)
+            $compression_algo &&
+            !\array_key_exists($compression_algo, $this->_validCompressionAlgorithms) &&
+            !\in_array($compression_algo, $this->_validCompressionAlgorithms, true)
         ) {
             throw new DecodeException();
+        }
+
+        // sanity check for bad $encoding
+        if (
+            $compression_algo &&
+            $compression_encoding &&
+            \array_key_exists($compression_algo, $this->_validCompressionAlgorithms) &&
+            \is_array($this->_validCompressionAlgorithms[$compression_algo]) &&
+            !\in_array($compression_encoding, $this->_validCompressionAlgorithms[$compression_algo], true)
+        ) {
+            throw new InvalidParam('encoding', __FUNCTION__, __CLASS__);
+        }
+
+        // make sure we nullify the $encoding if we don't have one
+        if (
+            $compression_algo &&
+            (!\array_key_exists($compression_algo, $this->_validCompressionAlgorithms) ||
+            !\is_array($this->_validCompressionAlgorithms[$compression_algo]))
+        ) {
+            $compression_encoding = null;
         }
 
         return [
             'payload' => $payload,
             'compression_algo' => $compression_algo,
-            'compression_encoding' => (\mb_strlen($compression_encoding) > 0) ? $compression_encoding : null,
+            'compression_encoding' => (mb_strlen($compression_encoding) > 0) ? $compression_encoding : null,
         ];
     }
 
@@ -400,24 +446,24 @@ class Base62x
         if (!\is_string($data)) {
             return false;
         }
-        $data = \trim($data);
+        $data = trim($data);
         if ($data == 'N;') {
             return true;
         }
-        if (\mb_strlen($data) < 4) {
+        if (mb_strlen($data) < 4) {
             return false;
         }
         if ($data[1] !== ':') {
             return false;
         }
         if ($strict) {
-            $lastc = \mb_substr($data, -1);
+            $lastc = mb_substr($data, -1);
             if ($lastc !== ';' && $lastc !== '}') {
                 return false;
             }
         } else {
-            $semicolon = \mb_strpos($data, ';');
-            $brace = \mb_strpos($data, '}');
+            $semicolon = mb_strpos($data, ';');
+            $brace = mb_strpos($data, '}');
             // Either ; or } must exist.
             if ($semicolon === false && $brace === false) {
                 return false;
@@ -434,23 +480,23 @@ class Base62x
         switch ($token) {
             case 's':
                 if ($strict) {
-                    if (\mb_substr($data, -2, 1) !== '"') {
+                    if (mb_substr($data, -2, 1) !== '"') {
                         return false;
                     }
-                } elseif (\mb_strpos($data, '"') === false) {
+                } elseif (mb_strpos($data, '"') === false) {
                     return false;
                 }
                 // Or else fall through.
                 // no break
             case 'a':
             case 'O':
-                return (bool) \preg_match("/^{$token}:[0-9]+:/s", $data);
+                return (bool) preg_match("/^{$token}:[0-9]+:/s", $data);
             case 'b':
             case 'i':
             case 'd':
                 $end = $strict ? '$' : '';
 
-                return (bool) \preg_match("/^{$token}:[0-9.E+-]+;$end/", $data);
+                return (bool) preg_match("/^{$token}:[0-9.E+-]+;$end/", $data);
         }
 
         return false;

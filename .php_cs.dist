@@ -17,7 +17,6 @@ return PhpCsFixer\Config::create()
         'linebreak_after_opening_tag' => true,
         'lowercase_constants' => true,
         'mb_str_functions' => true,
-        'native_function_invocation' => true,
         'no_closing_tag' => true,
         'no_trailing_whitespace' => true,
         'ordered_imports' => [

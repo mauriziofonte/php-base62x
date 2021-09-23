@@ -15,16 +15,16 @@ class GzipCompression
         $encoded = false;
         switch ($encoding) {
             case 'zlib':
-                $encoded = \gzcompress($data, 9);
+                $encoded = @\gzcompress($data, 9);
             break;
             case 'deflate':
-                $encoded = \gzdeflate($data, 9);
+                $encoded = @\gzdeflate($data, 9);
             break;
             case 'gzip':
-                $encoded = \gzencode($data, 9);
+                $encoded = @\gzencode($data, 9);
             break;
             default:
-                $encoded = \gzencode($data, 9);
+                $encoded = @\gzencode($data, 9);
         }
 
         if ($encoded === false) {
@@ -40,23 +40,29 @@ class GzipCompression
             throw new CompressionException('gzip', 'Cannot use Gzip as compression algorithm: the current PHP installation does not support this module.');
         }
 
+        $fn = 'gzdecode';
         $decoded = false;
         switch ($encoding) {
             case 'zlib':
-                $decoded = \gzuncompress($data);
+                $fn = 'gzuncompress';
+                $decoded = @\gzuncompress($data);
+                if (empty($decoded)) {
+                    $decoded = @\gzdecode($data);
+                }
             break;
             case 'deflate':
-                $decoded = \gzinflate($data);
+                $fn = 'gzinflate';
+                $decoded = @\gzinflate($data);
             break;
             case 'gzip':
-                $decoded = \gzdecode($data);
+                $decoded = @\gzdecode($data);
             break;
             default:
-                $decoded = \gzdecode($data);
+                $decoded = @\gzdecode($data);
         }
 
         if ($decoded === false) {
-            throw new CompressionException('gzip', 'The gz decompression function returned a false state while uncompressing the input data.');
+            throw new CompressionException('gzip', "The {$fn}() function returned a false state while uncompressing the input data.");
         }
 
         return $decoded;
