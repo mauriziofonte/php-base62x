@@ -312,7 +312,7 @@ class Base62x
                 $payload = '';
         }
 
-        return $payload;
+        return (string) $payload;
     }
 
     /**
@@ -350,7 +350,12 @@ class Base62x
                 'method' => $this->cryptMethod,
             ]);
 
-            return $crypt->cipher($payload)->decrypt();
+            $decrypted = $crypt->cipher($payload)->decrypt();
+            if ($decrypted === false) {
+                throw new CryptException('Cannot decrypt the payload: result from cipher()->decrypt() is false');
+            }
+
+            return $decrypted;
         } catch (Exception $ex) {
             throw new CryptException('Cannot decrypt the payload: '.$ex->getMessage());
         }
@@ -425,7 +430,7 @@ class Base62x
         return [
             'payload' => $payload,
             'compression_algo' => $compression_algo,
-            'compression_encoding' => (mb_strlen($compression_encoding) > 0) ? $compression_encoding : null,
+            'compression_encoding' => ($compression_encoding && mb_strlen($compression_encoding) > 0) ? $compression_encoding : null,
         ];
     }
 

@@ -77,7 +77,6 @@ class Base62x
             $isNum = true;
         }
         if ($isNum) {
-            $output = 0;
             $num_input = self::xx2dec($input, $ibase, $rb62x);
             $obase = $xpos;
             $output = self::dec2xx($num_input, $obase, $b62x);
@@ -109,7 +108,7 @@ class Base62x
                         $op[$m] = $xtag;
                         $op[++$m] = $xtag;
                     } else {
-                        $op[$m] = \chr($inputArr[$i]);
+                        $op[$m] = \chr((int) ($inputArr[$i]));
                     }
                     ++$m;
                 } while (++$i < $inputlen);

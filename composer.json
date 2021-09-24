@@ -1,12 +1,12 @@
 {
     "name": "mfonte/base62x",
-    "description": "A Base62x library for Laravel, that supports encoding/decoding of strings, arrays, objects, resources. Plus, it also supports Gzip and Huffmann compression/decompression.",
+    "description": "A Base62x PHP implementation library, that can be used in frameworks like Laravel, that supports encoding/decoding of strings, arrays, objects, and binary resources. It also supports Gzip compression/decompression and symmetric encryption.",
     "keywords": [
         "base62x",
         "encoding",
         "laravel",
         "compression",
-        "huffmann"
+        "encryption"
     ],
     "type": "library",
     "license": "Apache-2.0",

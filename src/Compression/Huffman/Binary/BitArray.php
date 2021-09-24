@@ -24,7 +24,7 @@ class BitArray implements \ArrayAccess
      */
     public static function load($data)
     {
-        $array = new self(\mb_strlen($data) * 8);
+        $array = new self(mb_strlen($data) * 8);
         $array->data = $data;
 
         return $array;
@@ -80,7 +80,7 @@ class BitArray implements \ArrayAccess
         $byte = ($Xor)
             ? $byte ^ (1 << $bit)
             : $byte | (1 << $bit);
-        $this->data[$index] = \pack('C*', $byte);
+        $this->data[$index] = pack('C*', $byte);
     }
 
     /**
@@ -109,7 +109,7 @@ class BitArray implements \ArrayAccess
      */
     private function getNumericValueAt($index)
     {
-        $bytes = \unpack('C*', $this->data[$index]);
+        $bytes = unpack('C*', $this->data[$index]);
 
         return $bytes[1];
     }
@@ -119,6 +119,6 @@ class BitArray implements \ArrayAccess
      */
     private function init()
     {
-        $this->data = \str_repeat("\0", \ceil($this->size / 8));
+        $this->data = str_repeat("\0", (int) (ceil($this->size / 8)));
     }
 }
