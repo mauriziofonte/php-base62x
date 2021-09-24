@@ -25,6 +25,8 @@ Simple enough.
 
 Required **PHP >= 7.0.0** and php's **gzip** support for gzip compression.
 
+Important: if you want to run tests, the minimum php version should be 7.2.
+
 ### Use cases
 
 Base64 is notoriously bad to be used in _GET_ strings. With this library, you can safely encode (and compress) and pass your data via **GET parameters**.

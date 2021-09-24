@@ -84,8 +84,9 @@ class HuffmanNode
      */
     private static function readEncodedNode(&$str)
     {
+        $retval = null;
         $switch = $str[0];
-        $str = \mb_substr($str, 1);
+        $str = mb_substr($str, 1);
         switch ($switch) {
             case '0':
                 $left = self::readEncodedNode($str);
@@ -94,20 +95,22 @@ class HuffmanNode
                 $parent->leftChild = $left;
                 $parent->rightChild = $right;
 
-                return $parent;
+                $retval = $parent;
                 break;
             case '1':
             case '2':
                 $symbol = ($switch == 1)
                     ? $str[0] :
                     HuffmanCoding::SYMBOL_EOF;
-                $str = \mb_substr($str, 1);
+                $str = mb_substr($str, 1);
 
-                return new self($symbol);
+                $retval = new self($symbol);
                 break;
             default:
                 throw new CompressionException('huffman', 'Encoding is out of sync.');
         }
+
+        return $retval;
     }
 
     /**

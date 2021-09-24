@@ -36,14 +36,14 @@ class Base62x
     /**
      * Wheter the payload needs to be compressed prior of encoding. Defaults to null.
      *
-     * @var bool
+     * @var string
      */
     protected $compressAlgorithm = null;
 
     /**
      * The compression mode related to the compression algo. Defaults to null.
      *
-     * @var bool
+     * @var string
      */
     protected $compressEncoding = null;
 
@@ -65,14 +65,14 @@ class Base62x
     /**
      * Wheter the payload needs to be decompressed after the decoding. Defaults to false.
      *
-     * @var bool
+     * @var string
      */
     protected $decompressAlgorithm = null;
 
     /**
      * The compression mode related to the compression algo. Defaults to null.
      *
-     * @var bool
+     * @var string
      */
     protected $decompressEncoding = null;
 
@@ -207,22 +207,23 @@ class Base62x
      */
     public function get()
     {
+        $retval = null;
         switch ($this->mode) {
             case self::MODE_ENCODE:
-                return $this->_encode($this->payload);
+                $retval = $this->_encode($this->payload);
             break;
 
             case self::MODE_DECODE:
-                $decoded = $this->_decode($this->payload);
+                $retval = $this->_decode($this->payload);
 
                 // decoded payload can be a serialized array: if so, we return the original representation
-                if ($this->_isSerializedString($decoded) && ($unserialized = @unserialize($decoded)) !== false) {
-                    return $unserialized;
+                if ($this->_isSerializedString($retval) && ($unserialized = @unserialize($retval)) !== false) {
+                    $retval = $unserialized;
                 }
-
-                return $decoded;
             break;
         }
+
+        return $retval;
     }
 
     /**
@@ -272,8 +273,6 @@ class Base62x
 
     /**
      * Performs the actual compress before chaining it into the Base62x encoder.
-     *
-     * @param mixed $payload
      */
     private function _performCompress(string $payload): string
     {
@@ -309,6 +308,8 @@ class Base62x
             case 'huffman':
                 $payload = HuffmanCompressor::decode($compressed_payload);
             break;
+            default:
+                $payload = '';
         }
 
         return $payload;
@@ -316,8 +317,6 @@ class Base62x
 
     /**
      * Performs the actual encryption before chaining it into the Base62x encoder.
-     *
-     * @param mixed $payload
      */
     private function _performEncryption(string $payload): ?string
     {
@@ -331,8 +330,6 @@ class Base62x
         } catch (Exception $ex) {
             throw new CryptException('Cannot encrypt the payload: '.$ex->getMessage());
         }
-
-        return null;
     }
 
     /**
@@ -357,8 +354,6 @@ class Base62x
         } catch (Exception $ex) {
             throw new CryptException('Cannot decrypt the payload: '.$ex->getMessage());
         }
-
-        return null;
     }
 
     /**
