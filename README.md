@@ -23,7 +23,7 @@ Simple enough.
 
 `composer require mfonte/base62x`
 
-Required **PHP >= 7.0.0** and php's **gzip** support for gzip compression. More to come, as the library gets other compression algos and encryption.
+Required **PHP >= 7.0.0** and php's **gzip** support for gzip compression.
 
 ### Use cases
 
@@ -33,7 +33,7 @@ Another use case is when you have to **communicate binary data** from one server
 
 Many Apache modules (like Mod Security) will do some strange things, already seen in the wild, while passing raw binary data or complex jugglary in server2server communication.
 
-Sure, you can use native `base64_encode()` and `base64_decode()` on both ends, but using this library not only you're encoding data, **you can also compress it on the go!**.
+Sure, you can use native `base64_encode()` and `base64_decode()` on both ends, but using this library not only you're encoding data, **you can also compress and encrypt it on the go!**.
 
 ### Basic Usage
 
@@ -47,6 +47,67 @@ $string = 'this is some string that needs to be encoded';
 $encoded = Base62x::encode($string)->get();
 $decoded = Base62x::decode($encoded)->get();
 
+```
+
+### Real use case scenario
+
+A useful example of **real use case scenario**, that I've used on some projects, is passing json context data from an HTML page to an Ajax worker.
+
+```php
+<?php
+
+// create an ajaxToken to be included in the <head> of the document
+$encryptedAjaxToken = Base62x::encode('secure_ajax_token')->encrypt(config('app.key'))->compress()->get();
+
+// create a context of data to be passed to the Ajax worker
+$contextData = ['route' => 'homepage', 'pagination' => ['currPage' => 1, 'maxPages' => 2]];
+$encryptedContextData = Base62x::encode($contextData)->encrypt(config('app.key'))->compress()->get();
+
+$html = <<<EOT
+<head>
+<meta charset="utf-8">
+...
+...
+<script type="text/javascript">
+const ajaxConfig = {
+    url: 'https://www.example.com/ajaxRequest',
+    token: '$encryptedAjaxToken',
+    context: '$encryptedContextData'
+};
+
+function ajaxRequest() {
+    $.post(ajaxConfig.url, Object.assign({
+        method: "whatever",
+    }, ajaxConfig)).done(function(response) {
+        // logic
+    });
+}
+</script>
+</head>
+EOT;
+```
+
+The data lifecycle from the frontend to the Ajax backend **is fully encrypted, and doesn't break HTML apart**, as Base62x strings are based on an alphabet that is compatible with embedding them in plain JS strings like I've shown in the provided example.
+
+In the Ajax backend **you can validate the token**, collect the context data, and reply only if the setup is correct:
+
+```php
+<?php
+
+try {
+    $ajaxToken = (array_key_exists('token', $_POST)) ? $_POST['token'] : '';
+    $context = (array_key_exists('context', $_POST)) ? $_POST['context'] : '';
+    $decodedAjaxToken = Base62x::decode($ajaxToken)->decrypt(config('app.key'))->get();
+    $decodedContext = Base62x::decode($context)->decrypt(config('app.key'))->get();
+
+    if($ajaxToken === 'secure_ajax_token' && is_array($context)) {
+        // checks are OK, proceed with your logic
+    }
+
+    // fallback: handle not authorized
+    header("HTTP/1.1 401 Unauthorized");
+    echo json_encode(['status' => false, 'error' => 401]);
+}
 ```
 
 ### The library supports binary streams
@@ -121,7 +182,7 @@ if(!empty($encoded_payload)) {
 ### Available compression methods
 
 1. **Gzip**, encoding `zlib`, `deflate`, or `gzip`. Without any further instruction, the `compress()` method defaults to `gzip/zlib`
-2. **Huffman** via a dedicated PHP Huffman implementation
+2. **Huffman** via a dedicated PHP Huffman implementation. **This compression method is currently not working. Please, do not use it in production environments.**
 
 These parameters can be passed to the `compress()` method like so:
 
@@ -129,16 +190,17 @@ These parameters can be passed to the `compress()` method like so:
 <?php
 use Mfonte\Base62x\Base62x;
 
-$payload = 'averylongstringaverylongstringaverylongstringaverylongstringaverylongstringaverylongstring...';
+$payload = 'Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.';
+
 try {
+    $gzip_default = Base62x::encode($payload)->compress()->get(); // alias of compress('gzip', 'gzip')
+    $gzip_gzip_encoded = Base62x::encode($payload)->compress('gzip', 'gzip')->get();
     $gzip_zlib_encoded = Base62x::encode($payload)->compress('gzip', 'zlib')->get();
     $gzip_deflate_encoded = Base62x::encode($payload)->compress('gzip', 'deflate')->get();
-    $gzip_gzip_encoded = Base62x::encode($payload)->compress('gzip', 'gzip')->get();
-    $huffman_encoded = Base62x::encode($payload)->compress('huffman')->get();
 
     // you DON'T NEED to call decompress() because the compression method is "saved" inside the
     // encoded payload into a "magic string"
-    $decoded = Base62x::decode($gzip_zlib_encoded)->get();
+    $decoded = Base62x::decode($gzip_default)->get();
 }
 catch(Exception $ex) {
     // One Exception of Mfonte/Base62x/Exception/EncodeException
@@ -185,6 +247,7 @@ Some tests **may fail** as **testEncodingWithAllAvailableEncryptionAlgorithms** 
 
 ### TODO
 
+-   [ ] Fix **Huffman compression**
 -   [ ] Add **Bzip2 compression**
 
 ### Contributing

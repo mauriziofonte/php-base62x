@@ -122,7 +122,7 @@ class Base62x
      *
      * @return \Mfonte\Base62x\Base62x
      */
-    public function compress($algo = 'gzip', $encoding = 'zlib'): self
+    public function compress($algo = 'gzip', $encoding = 'gzip'): self
     {
         // sanity check for bad $algo
         if (
