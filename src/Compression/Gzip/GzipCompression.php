@@ -15,21 +15,24 @@ class GzipCompression
         $encoded = false;
         switch ($encoding) {
             case 'zlib':
-                $encoded = @\gzcompress($data, 9);
+                $encoded = @gzcompress($data, 9);
             break;
             case 'deflate':
-                $encoded = @\gzdeflate($data, 9);
+                $encoded = @gzdeflate($data, 9);
             break;
             case 'gzip':
-                $encoded = @\gzencode($data, 9);
+                $encoded = @gzencode($data, 9);
             break;
             default:
-                $encoded = @\gzencode($data, 9);
+                $encoded = @gzencode($data, 9);
         }
 
         if ($encoded === false) {
             throw new CompressionException('gzip', 'The gz compression function returned a false state while compressing the input data.');
         }
+
+        // avoid data errors: perform a base64_encode prior of returning
+        $encoded = base64_encode($encoded);
 
         return $encoded;
     }
@@ -40,25 +43,25 @@ class GzipCompression
             throw new CompressionException('gzip', 'Cannot use Gzip as compression algorithm: the current PHP installation does not support this module.');
         }
 
+        // the data comes encoded in base64: see above
+        $data = base64_decode($data, true);
+
         $fn = 'gzdecode';
         $decoded = false;
         switch ($encoding) {
             case 'zlib':
                 $fn = 'gzuncompress';
-                $decoded = @\gzuncompress($data);
-                if (empty($decoded)) {
-                    $decoded = @\gzdecode($data);
-                }
+                $decoded = @gzuncompress($data);
             break;
             case 'deflate':
                 $fn = 'gzinflate';
-                $decoded = @\gzinflate($data);
+                $decoded = @gzinflate($data);
             break;
             case 'gzip':
-                $decoded = @\gzdecode($data);
+                $decoded = @gzdecode($data);
             break;
             default:
-                $decoded = @\gzdecode($data);
+                $decoded = @gzdecode($data);
         }
 
         if ($decoded === false) {

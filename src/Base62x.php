@@ -294,7 +294,7 @@ class Base62x
         // create the compression footprint, to avoid the decompress() on Base62x::decode()
         $footprint = $this->_createCompressionFootprint();
 
-        return implode('', [$footprint, $compressed]);
+        return $footprint.$compressed;
     }
 
     /**
@@ -415,7 +415,7 @@ class Base62x
             \is_array($this->_validCompressionAlgorithms[$compression_algo]) &&
             !\in_array($compression_encoding, $this->_validCompressionAlgorithms[$compression_algo], true)
         ) {
-            throw new InvalidParam('encoding', __FUNCTION__, __CLASS__);
+            throw new DecodeException();
         }
 
         // make sure we nullify the $encoding if we don't have one

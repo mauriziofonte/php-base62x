@@ -86,7 +86,7 @@ class Base62x
             // string
             $ascidx = [];
             $ascrlist = [];
-            $inputArr = \mb_str_split($input);
+            $inputArr = mb_str_split($input);
             $inputlen = \count($inputArr);
             //if(!isset($ascidx)){ $ascidx = array(); }
             //if(!isset($ascrlist)){ $ascrlist = array(); }
@@ -197,7 +197,7 @@ class Base62x
                     ++$m;
                 } while (++$i < $inputlen);
             }
-            $output = \implode('', $op);
+            $output = implode('', $op);
         }
 
         return $output;
@@ -235,7 +235,7 @@ class Base62x
             // string
             $ascidx = [];
             $ascrlist = [];
-            $inputArr = \mb_str_split($input);
+            $inputArr = mb_str_split($input);
             $inputlen = \count($inputArr);
             $setResult = self::setAscii($codetype, $inputArr, $ascidx, $ascmax, $asclist, $ascrlist);
             $asctype = $setResult['asctype'];
@@ -284,13 +284,14 @@ class Base62x
                         $op = $arr[0];
                         $m = $arr[1]; //- deprecated
                     } else {
-                        \error_log(__FILE__.': found illegal base62x input:['.$inputArr[$i].']. 1608091042.');
+                        error_log(__FILE__.': found illegal base62x input:['.$inputArr[$i].']. 1608091042.');
+                        ++$i;
                         continue;
                     }
                     ++$m;
                 } while ($i < $inputlen);
             }
-            $output = \implode('', $op);
+            $output = implode('', $op);
         }
 
         return $output;
@@ -307,7 +308,7 @@ class Base62x
         $base59 = self::base59;
         $xpos = self::xpos;
         if ($ibase <= $safebase) {
-            $onum = \base_convert($inum, $ibase, $obase);
+            $onum = base_convert($inum, $ibase, $obase);
         } else {
             if ($ibase > $base59 && $ibase < $xpos) {
                 // base 60, 61, 62 or sth, reset ridx table
@@ -321,8 +322,8 @@ class Base62x
                 $ridx_in['z'] = 61;
                 $ridx = $ridx_in;
             }
-            $iArr = \mb_str_split($inum);
-            $iArr = \array_reverse($iArr);
+            $iArr = mb_str_split($inum);
+            $iArr = array_reverse($iArr);
             $arrLen = \count($iArr);
             $xnum = 0;
             $isBase62x = ($ibase == $xpos);
@@ -335,15 +336,15 @@ class Base62x
                     $tmpi = $ridx[$iArr[$i]];
                 }
                 if ($tmpi >= $ibase) {
-                    \error_log(__FILE__.": xxdec found out of radix:$tmpi for base:$ibase.\n");
+                    error_log(__FILE__.": xxdec found out of radix:$tmpi for base:$ibase.\n");
                     $tmpi = $ibase - 1;
                 }
                 $onum = $onum + $tmpi * $ibase ** ($i - $xnum);
                 //error_log("\t".__FILE__.": xx2dec ibase:$ibase i:$i c:".$iArr[$i]." tmpi:$tmpi onum:$onum xnum:$xnum");
             }
-            if (\mb_strpos($onum, 'E') !== false) {
-                \error_log(__FILE__.": Base62x::xx2dec: lost precision due to too large number:[$onum]. consider using bc math. 1610072145.");
-                $onum = \number_format($onum);
+            if (mb_strpos($onum, 'E') !== false) {
+                error_log(__FILE__.": Base62x::xx2dec: lost precision due to too large number:[$onum]. consider using bc math. 1610072145.");
+                $onum = number_format($onum);
             }
         }
         //error_log(__FILE__.": xx2dec: in:$inum ibase:$ibase outindec:".$onum);
@@ -361,7 +362,7 @@ class Base62x
         $base59 = self::base59;
         $xpos = self::xpos;
         if ($obase <= $safebase) {
-            $onum = \base_convert($inum, $ibase, $obase);
+            $onum = base_convert($inum, $ibase, $obase);
         } else {
             $isBase62x = false;
             if ($obase > $base59 && $obase < $xpos) {
@@ -386,7 +387,7 @@ class Base62x
             $oArr = [];
             while ($inum >= $obase) {
                 $b = $inum % $obase;
-                $inum = \floor($inum / $obase);
+                $inum = floor($inum / $obase);
                 if ($b <= $maxPos) {
                     $oArr[$i++] = $idx[$b];
                 } else {
@@ -403,9 +404,9 @@ class Base62x
                     $oArr[$i++] = $xtag;
                 }
             }
-            $oArr = \array_reverse($oArr);
+            $oArr = array_reverse($oArr);
             //print_r($oArr);
-            $onum = \implode('', $oArr);
+            $onum = implode('', $oArr);
         }
         //error_log(__FILE__.": dec2xx: inindec:$inum obase:$obase out:".($onum));
         return $onum;
