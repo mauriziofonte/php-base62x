@@ -14,7 +14,7 @@ It can be integrated into any framework, like Laravel, to enable Base62x support
 
 [![Latest Stable Version](https://poser.pugx.org/mfonte/base62x/v/stable)](https://packagist.org/packages/mfonte/base62x)
 [![Total Downloads](https://poser.pugx.org/mfonte/base62x/downloads)](https://packagist.org/packages/mfonte/base62x)
-[![Coverage Status](https://scrutinizer-ci.com/g/mauriziofonte/php-base62x/badges/coverage.png?b=master)](https://scrutinizer-ci.com/g/mauriziofonte/php-base62x/)
+[![Build Status](https://scrutinizer-ci.com/g/mauriziofonte/php-base62x/badges/build.png?b=master)](https://scrutinizer-ci.com/g/mauriziofonte/php-base62x/)
 [![Scrutinizer Code Quality](https://scrutinizer-ci.com/g/mauriziofonte/php-base62x/badges/quality-score.png?b=master)](https://scrutinizer-ci.com/g/mauriziofonte/php-base62x/)
 
 ### Installation
