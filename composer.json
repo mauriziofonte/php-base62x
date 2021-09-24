@@ -28,12 +28,12 @@
         }
     },
     "require": {
-        "php": ">=7.0"
+        "php": ">=7.1"
     },
     "require-dev": {
         "friendsofphp/php-cs-fixer": "^2.16",
         "phpunit/phpunit": "^6",
-        "phpstan/phpstan": "^0.12.18",
+        "phpstan/phpstan": "^0.12.99",
         "php-coveralls/php-coveralls": "^2.2",
         "orchestra/testbench": "^3.5.6"
     },

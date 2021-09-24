@@ -23,7 +23,7 @@ Simple enough.
 
 `composer require mfonte/base62x`
 
-Required **PHP >= 7.0.0** and php's **gzip** support for gzip compression.
+Required **PHP >= 7.1** and php's **gzip** support for gzip compression.
 
 ### Use cases
 
