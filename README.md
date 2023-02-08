@@ -1,29 +1,33 @@
-## PHP Base62x Library
+# PHP Base62x Library
 
 This library can be used to encode strings in **Base62x** format.
 
-The reference implementation of Base62x has been taken by this repository: https://github.com/wadelau/Base62x
+The reference implementation of _Base62x_ has been taken by this repository: [https://github.com/wadelau/Base62x](https://github.com/wadelau/Base62x)
 
 Stating the original author repository, **Base62x is an alternative approach to Base 64 without symbols in output.**
 
-Base62x is an **non-symbolic Base64 encoding scheme**. It can be used safely in computer file systems, programming languages for data exchange, internet communication systems, etc, and it is an ideal substitute and successor of many variants of Base64 encoding scheme.
+_Base62x_ is an **non-symbolic Base64 encoding scheme**. It can be used safely in computer file systems, programming languages for data exchange, internet communication systems, etc, and it is an ideal substitute and successor of many variants of Base64 encoding scheme.
 
 This repository is a wrapper around **wadelau/Base62x** repository, and is specifically crafted for PHP, with composer support.
 
-It can be integrated into any framework, like Laravel, to enable Base62x support out of the box.
+It can be integrated into any framework, like Laravel, to enable _Base62x_ support out of the box.
 
 [![Latest Stable Version](https://poser.pugx.org/mfonte/base62x/v/stable)](https://packagist.org/packages/mfonte/base62x)
 [![Total Downloads](https://poser.pugx.org/mfonte/base62x/downloads)](https://packagist.org/packages/mfonte/base62x)
 [![Build Status](https://scrutinizer-ci.com/g/mauriziofonte/php-base62x/badges/build.png?b=master)](https://scrutinizer-ci.com/g/mauriziofonte/php-base62x/)
 [![Scrutinizer Code Quality](https://scrutinizer-ci.com/g/mauriziofonte/php-base62x/badges/quality-score.png?b=master)](https://scrutinizer-ci.com/g/mauriziofonte/php-base62x/)
 
-### Installation
+## Installation
 
 Simple enough.
 
 `composer require mfonte/base62x`
 
-Required **PHP >= 7.1** and php's **gzip** support for gzip compression.
+Required environment:
+
+1. PHP **>= 7.2**
+2. `gzip` module, for gzip compression support
+3. `openssl` module, for encryption support
 
 ### Use cases
 
