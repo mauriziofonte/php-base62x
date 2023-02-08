@@ -41,7 +41,7 @@ class BitArray implements \ArrayAccess
     /**
      * 	whether the given offset exists: ArrayAccess.
      */
-    public function offsetExists($offset)
+    public function offsetExists($offset): bool
     {
         if (!\is_int($offset)) {
             return false;
@@ -53,6 +53,7 @@ class BitArray implements \ArrayAccess
     /**
      * 	get the value at the given offset: ArrayAccess.
      */
+    #[\ReturnTypeWillChange]
     public function offsetGet($offset)
     {
         list($index, $bit) = $this->getPosition($offset);
@@ -63,7 +64,7 @@ class BitArray implements \ArrayAccess
     /**
      * 	set the value at the given offset: ArrayAccess.
      */
-    public function offsetSet($offset, $value)
+    public function offsetSet($offset, $value): void
     {
         $Xor = false;
         if (!$value) {
@@ -88,7 +89,7 @@ class BitArray implements \ArrayAccess
      * 	NOTE: This deviates a little from the true ArrayAccess meaning,
      *	b/c we have a value (0 or 1) at every bit no matter what. unsetting sets to 0.
      */
-    public function offsetUnset($offset)
+    public function offsetUnset($offset): void
     {
         $this->offsetSet($offset, 0);
     }

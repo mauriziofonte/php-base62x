@@ -14,8 +14,8 @@ use Mfonte\Base62x\Compression\Huffman\HuffmanCoding as HuffmanCompressor;
 
 class Base62x
 {
-    const MODE_ENCODE = 1;
-    const MODE_DECODE = 2;
+    public const MODE_ENCODE = 1;
+    public const MODE_DECODE = 2;
 
     protected $_validCompressionAlgorithms = ['gzip' => ['zlib', 'deflate', 'gzip'], 'huffman'];
 
@@ -48,12 +48,12 @@ class Base62x
     protected $compressEncoding = null;
 
     /**
-     * The encryption method (algorithm) to be used in case of password-protected encoding.
-     * This variable *must* be a valid method supported in openssl_get_cipher_methods().
+     * The encryption cypher (algorithm) to be used in case of password-protected encoding.
+     * This variable *must* be a valid cypher method supported in openssl_get_cipher_methods().
      *
      * @var string
      */
-    protected $cryptMethod;
+    protected $cryptCypher = 'aes-256-cbc';
 
     /**
      * The encrypt/decrypt key (password) to be used to protect/unprotect the encoding.
@@ -168,23 +168,31 @@ class Base62x
     }
 
     /**
-     * Sets the encryption key (password) and method (algorithm).
+     * Sets the encryption key (password) and cypher method.
+     * This method is only available if the openssl extension is available in your PHP installation.
+     * This method will throw exceptions if you try to use any ECB cypher method, or AEAD cypher methods.
      *
      * @param string $key    A password for your encoded base62x output string
-     * @param string $method A valid openssl cypher method as supported in your environment (openssl_get_cipher_methods)
+     * @param string $cypher A valid openssl cypher method as supported in your environment (openssl_get_cipher_methods)
      *
      * @return \Mfonte\Base62x\Base62x
      */
-    public function encrypt(string $key, string $method = 'aes-128-ctr'): self
+    public function encrypt(string $key, string $cypher = 'aes-128-ctr'): self
     {
         if (!\function_exists('openssl_get_cipher_methods')) {
             throw new CryptException('openssl_get_cipher_methods unsupported in your PHP installation');
         }
-        if (!\in_array(mb_strtolower($method), openssl_get_cipher_methods(), true)) {
-            throw new CryptException('Encryption method "'.$method.'" is either unsupported in your PHP installation or not a valid encryption algorithm.');
+        if (!\in_array(mb_strtolower($cypher), openssl_get_cipher_methods(), true)) {
+            throw new CryptException('Encryption cypher method "'.$cypher.'" is either unsupported in your PHP installation or not a valid encryption algorithm.');
+        }
+        if (\in_array(mb_strtolower($cypher), ['aes-128-ecb', 'aes-192-ecb', 'aes-256-ecb'], true)) {
+            throw new CryptException('Encryption cypher method "'.$cypher.'" is not supported. ECB mode is not secure.');
+        }
+        if (\in_array(mb_strtolower($cypher), ['aead'], true)) {
+            throw new CryptException('Encryption cypher method "'.$cypher.'" is not supported. AEAD mode is not supported.');
         }
 
-        $this->cryptMethod = mb_strtolower($method);
+        $this->cryptCypher = mb_strtolower($cypher);
         $this->cryptKey = $key;
 
         return $this;
@@ -211,7 +219,7 @@ class Base62x
         switch ($this->mode) {
             case self::MODE_ENCODE:
                 $retval = $this->_encode($this->payload);
-            break;
+                break;
 
             case self::MODE_DECODE:
                 $retval = $this->_decode($this->payload);
@@ -220,7 +228,7 @@ class Base62x
                 if ($this->_isSerializedString($retval) && ($unserialized = @unserialize($retval)) !== false) {
                     $retval = $unserialized;
                 }
-            break;
+                break;
         }
 
         return $retval;
@@ -231,7 +239,7 @@ class Base62x
      */
     private function _encode(string $payload): string
     {
-        if ($this->cryptKey && $this->cryptMethod) {
+        if ($this->cryptKey && $this->cryptCypher) {
             $payload = $this->_performEncryption($payload);
         }
         if ($this->compressAlgorithm) {
@@ -264,7 +272,7 @@ class Base62x
         }
 
         // eventually perform decryption
-        if ($this->cryptKey && $this->cryptMethod) {
+        if ($this->cryptKey && $this->cryptCypher) {
             $decoded = $this->_performDecryption($decoded);
         }
 
@@ -280,10 +288,10 @@ class Base62x
         switch ($this->compressAlgorithm) {
             case 'gzip':
                 $compressed = GzipCompressor::encode($payload, $this->compressEncoding);
-            break;
+                break;
             case 'huffman':
                 $compressed = HuffmanCompressor::encode($payload, HuffmanCompressor::createCodeTree($payload));
-            break;
+                break;
         }
 
         if (empty($compressed)) {
@@ -304,10 +312,10 @@ class Base62x
         switch ($compression_algo) {
             case 'gzip':
                 $payload = GzipCompressor::decode($compressed_payload, $compression_encoding);
-            break;
+                break;
             case 'huffman':
                 $payload = HuffmanCompressor::decode($compressed_payload);
-            break;
+                break;
             default:
                 $payload = '';
         }
@@ -323,7 +331,7 @@ class Base62x
         try {
             $crypt = new Crypter([
                 'key' => $this->cryptKey,
-                'method' => $this->cryptMethod,
+                'method' => $this->cryptCypher,
             ]);
 
             return $crypt->cipher($payload)->encrypt();
@@ -340,14 +348,14 @@ class Base62x
         if (empty($this->cryptKey)) {
             throw new CryptException('Cannot decrypt the payload without a valid cryptKey');
         }
-        if (empty($this->cryptMethod)) {
-            throw new CryptException('Cannot decrypt the payload without a valid cryptMethod');
+        if (empty($this->cryptCypher)) {
+            throw new CryptException('Cannot decrypt the payload without a valid cryptCypher');
         }
 
         try {
             $crypt = new Crypter([
                 'key' => $this->cryptKey,
-                'method' => $this->cryptMethod,
+                'method' => $this->cryptCypher,
             ]);
 
             $decrypted = $crypt->cipher($payload)->decrypt();
@@ -430,7 +438,7 @@ class Base62x
         return [
             'payload' => $payload,
             'compression_algo' => $compression_algo,
-            'compression_encoding' => ($compression_encoding && mb_strlen($compression_encoding) > 0) ? $compression_encoding : null,
+            'compression_encoding' => (!empty($compression_encoding)) ? $compression_encoding : null,
         ];
     }
 

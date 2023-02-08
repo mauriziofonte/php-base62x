@@ -27,7 +27,7 @@ class HuffmanNodeQueue
         while (isset($this->nodes[$index]) && $this->nodes[$index]->getWeight() < $node->getWeight()) {
             ++$index;
         }
-        \array_splice($this->nodes, $index, 0, [$node]);
+        array_splice($this->nodes, $index, 0, [$node]);
     }
 
     /**
@@ -36,8 +36,8 @@ class HuffmanNodeQueue
     public function popTwoNodes()
     {
         if (\count($this->nodes) > 1) {
-            $first = \array_shift($this->nodes);
-            $second = \array_shift($this->nodes);
+            $first = array_shift($this->nodes);
+            $second = array_shift($this->nodes);
 
             return [$first, $second];
         } else {

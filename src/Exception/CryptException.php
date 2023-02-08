@@ -4,8 +4,8 @@ namespace Mfonte\Base62x\Exception;
 
 class CryptException extends \RuntimeException
 {
-    const REASON = 'Crypt Exception';
-    const CODE = 0;
+    public const REASON = 'Crypt Exception';
+    public const CODE = 0;
 
     public function __construct(string $reason)
     {

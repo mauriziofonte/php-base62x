@@ -27,29 +27,29 @@ class Base62x
     public $isdebug = false;
     public $i = 0;
     public $codetype = 0; // 0:encode, 1:decode
-    const XTAG = 'x';
-    const ENCD = '-enc';
-    const DECD = '-dec';
-    const DEBG = '-v';
-    const CVTN = '-n';
-    const b62x = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9',
+    public const XTAG = 'x';
+    public const ENCD = '-enc';
+    public const DECD = '-dec';
+    public const DEBG = '-v';
+    public const CVTN = '-n';
+    public const b62x = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9',
         'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N',
         'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z', 'a', 'b',
         'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p',
         'q', 'r', 's', 't', 'u', 'v', 'w', 'y', 'z', '1', '2', '3', 'x', ];
-    const bpos = 60; // 0-60 chars
-    const xpos = 64; // b62x[64] = 'x'
+    public const bpos = 60; // 0-60 chars
+    public const xpos = 64; // b62x[64] = 'x'
     public static $rb62x = [];
-    const ascmax = 127;
-    const asclist = ['4', '5', '6', '7', '8', '9', '0',
+    public const ascmax = 127;
+    public const asclist = ['4', '5', '6', '7', '8', '9', '0',
         'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N',
         'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z', 'a', 'b',
         'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p',
         'q', 'r', 's', 't', 'u', 'v', 'w', 'y', 'z', ]; // 58
     public $ascidx = [];
     public $ascrlist = [];
-    const max_safe_base = 36;
-    const base59 = 59; // static $rb62xyz = array(); static $b62xyz = array();
+    public const max_safe_base = 36;
+    public const base59 = 59; // static $rb62xyz = array(); static $b62xyz = array();
     public static $ver = 0.9;
 
     // methods
@@ -125,9 +125,9 @@ class Base62x
                         $inputArr[$i + 1] = \ord($inputArr[$i + 1]);
                         $inputArr[$i + 2] = \ord($inputArr[$i + 2]);
                         $c0 = $inputArr[$i] >> 2;
-                        $c1 = ((($inputArr[$i] << 6) & 0xff) >> 2) | ($inputArr[$i + 1] >> 4);
-                        $c2 = ((($inputArr[$i + 1] << 4) & 0xff) >> 2) | ($inputArr[$i + 2] >> 6);
-                        $c3 = (($inputArr[$i + 2] << 2) & 0xff) >> 2;
+                        $c1 = ((($inputArr[$i] << 6) & 0xFF) >> 2) | ($inputArr[$i + 1] >> 4);
+                        $c2 = ((($inputArr[$i + 1] << 4) & 0xFF) >> 2) | ($inputArr[$i + 2] >> 6);
+                        $c3 = (($inputArr[$i + 2] << 2) & 0xFF) >> 2;
                         if ($c0 > $bpos) {
                             $op[$m] = $xtag;
                             $op[++$m] = $b62x[$c0];
@@ -156,8 +156,8 @@ class Base62x
                     } elseif ($remaini == 2) {
                         $inputArr[$i + 1] = \ord($inputArr[$i + 1]);
                         $c0 = $inputArr[$i] >> 2;
-                        $c1 = ((($inputArr[$i] << 6) & 0xff) >> 2) | ($inputArr[$i + 1] >> 4);
-                        $c2 = (($inputArr[$i + 1] << 4) & 0xff) >> 4;
+                        $c1 = ((($inputArr[$i] << 6) & 0xFF) >> 2) | ($inputArr[$i + 1] >> 4);
+                        $c2 = (($inputArr[$i + 1] << 4) & 0xFF) >> 4;
                         if ($c0 > $bpos) {
                             $op[$m] = $xtag;
                             $op[++$m] = $b62x[$c0];
@@ -179,7 +179,7 @@ class Base62x
                         ++$i;
                     } else { // == 1
                         $c0 = $inputArr[$i] >> 2;
-                        $c1 = (($inputArr[$i] << 6) & 0xff) >> 6;
+                        $c1 = (($inputArr[$i] << 6) & 0xFF) >> 6;
                         if ($c0 > $bpos) {
                             $op[$m] = $xtag;
                             $op[++$m] = $b62x[$c0];
@@ -484,14 +484,14 @@ class Base62x
         $c2 = 0;
         if ($tmpArr[3] !== null) {
             $c0 = $tmpArr[0] << 2 | $tmpArr[1] >> 4;
-            $c1 = (($tmpArr[1] << 4) & 0xf0) | ($tmpArr[2] >> 2);
-            $c2 = (($tmpArr[2] << 6) & 0xff) | $tmpArr[3];
+            $c1 = (($tmpArr[1] << 4) & 0xF0) | ($tmpArr[2] >> 2);
+            $c2 = (($tmpArr[2] << 6) & 0xFF) | $tmpArr[3];
             $op[$m] = \chr($c0);
             $op[++$m] = \chr($c1);
             $op[++$m] = \chr($c2);
         } elseif ($tmpArr[2] !== null) {
             $c0 = $tmpArr[0] << 2 | $tmpArr[1] >> 4;
-            $c1 = (($tmpArr[1] << 4) & 0xf0) | $tmpArr[2];
+            $c1 = (($tmpArr[1] << 4) & 0xF0) | $tmpArr[2];
             $op[$m] = \chr($c0);
             $op[++$m] = \chr($c1);
         } elseif ($tmpArr[1] !== null) {

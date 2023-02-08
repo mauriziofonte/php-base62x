@@ -4,8 +4,8 @@ namespace Mfonte\Base62x\Exception;
 
 class EncodeException extends \RuntimeException
 {
-    const REASON = 'Base62x Encode error';
-    const CODE = 0;
+    public const REASON = 'Base62x Encode error';
+    public const CODE = 0;
 
     public function __construct()
     {

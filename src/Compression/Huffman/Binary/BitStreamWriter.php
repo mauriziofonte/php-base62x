@@ -24,7 +24,7 @@ class BitStreamWriter
      */
     public function writeString($bitStr)
     {
-        for ($i = 0; $i < \mb_strlen($bitStr); ++$i) {
+        for ($i = 0; $i < mb_strlen($bitStr); ++$i) {
             $this->writeBit((bool) $bitStr[$i]);
         }
     }

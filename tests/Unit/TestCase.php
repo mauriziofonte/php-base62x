@@ -10,10 +10,10 @@ abstract class TestCase extends PHPUnitTestCase
     protected $fixturesDir;
     protected $testDir;
 
-    public function setUp(): void
+    protected function setUp(): void
     {
-        $this->testDir = \rtrim(__DIR__, \DIRECTORY_SEPARATOR).\DIRECTORY_SEPARATOR;
-        $this->fixturesDir = \rtrim(__DIR__, \DIRECTORY_SEPARATOR).\DIRECTORY_SEPARATOR.'fixtures'.\DIRECTORY_SEPARATOR;
+        $this->testDir = rtrim(__DIR__, \DIRECTORY_SEPARATOR).\DIRECTORY_SEPARATOR;
+        $this->fixturesDir = rtrim(__DIR__, \DIRECTORY_SEPARATOR).\DIRECTORY_SEPARATOR.'fixtures'.\DIRECTORY_SEPARATOR;
     }
 
     protected function getFixtureFile($fileName): string
@@ -23,26 +23,37 @@ abstract class TestCase extends PHPUnitTestCase
 
     protected function getRandomString(int $size): string
     {
-        $characters = \str_replace([\chr(13).\chr(10), \chr(10), \chr(9)], '', \preg_replace('/\s\s+/', '', \implode('', \explode(\chr(10), \file_get_contents($this->fixturesDir.'utf8.txt')))));
-        $charactersLength = \mb_strlen($characters);
+        $stream = $this->getFixtureFile('utf8.txt');
+
+        // pick $size random characters from the file
         $randomString = '';
+        $fp = fopen($stream, 'r');
+        fseek($fp, 0, \SEEK_END);
+        $fileSize = ftell($fp);
+        fseek($fp, 0, \SEEK_SET);
+        $randomPositions = [];
         for ($i = 0; $i < $size; ++$i) {
-            $randomString .= $characters[\rand(0, $charactersLength - 1)];
+            $randomPositions[] = rand(0, $fileSize);
         }
+
+        sort($randomPositions);
+        foreach ($randomPositions as $position) {
+            fseek($fp, $position, \SEEK_SET);
+            $randomString .= fread($fp, 1);
+        }
+
+        fclose($fp);
 
         return $randomString;
     }
 
     protected function getRandomText(int $lines): string
     {
-        $ret = '';
+        $ret = [];
         for ($i = 0; $i < $lines; ++$i) {
-            for ($k = 0; $k < 10; ++$k) {
-                $ret .= $this->getRandomString(\rand(5, 20)).' ';
-            }
-            $ret = \trim($ret).\chr(10);
+            $ret[] = $this->getRandomString(rand(32, 64));
         }
 
-        return \trim($ret, \chr(10));
+        return implode(\PHP_EOL, $ret);
     }
 }

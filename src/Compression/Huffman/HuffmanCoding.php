@@ -12,7 +12,7 @@ use Mfonte\Base62x\Compression\Huffman\Binary\BitStreamWriter;
  */
 class HuffmanCoding
 {
-    const SYMBOL_EOF = 'EOF';
+    public const SYMBOL_EOF = 'EOF';
 
     /**
      * 	create a code tree whose weights and symbols come from the sample indicated
@@ -21,7 +21,7 @@ class HuffmanCoding
     public static function createCodeTree($sample)
     {
         $weights = [];
-        for ($i = 0; $i < \mb_strlen($sample); ++$i) {
+        for ($i = 0; $i < mb_strlen($sample); ++$i) {
             if (!isset($weights[$sample[$i]])) {
                 $weights[$sample[$i]] = 0;
             }
@@ -30,7 +30,7 @@ class HuffmanCoding
         $weights[self::SYMBOL_EOF] = 1;	//	add the EOF marker to the encoding
 
         $queue = new HuffmanNodeQueue();
-        \arsort($weights);
+        arsort($weights);
         foreach ($weights as $symbol => $weight) {
             $queue->addNode(new HuffmanNode($symbol, $weight));
         }
@@ -51,7 +51,7 @@ class HuffmanCoding
         $codeHash = [];
         $codeTree->getCodeHash($codeHash);
         $stream = new BitStreamWriter();
-        for ($i = 0; $i < \mb_strlen($data); ++$i) {
+        for ($i = 0; $i < mb_strlen($data); ++$i) {
             $symbol = $data[$i];
             if (isset($codeHash[$symbol])) {
                 $stream->writeString($codeHash[$symbol]);

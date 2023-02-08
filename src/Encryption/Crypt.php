@@ -18,15 +18,15 @@ class Crypt
     public function __construct($options = [])
     {
         //Set default encryption key if none supplied
-        $key = isset($options['key']) ? $options['key'] : \php_uname();
+        $key = isset($options['key']) ? $options['key'] : php_uname();
 
         $method = isset($options['method']) ? $options['method'] : false;
 
         // convert ASCII keys to binary format
-        $this->key = \ctype_print($key) ? \openssl_digest($key, 'SHA256', true) : $key;
+        $this->key = ctype_print($key) ? openssl_digest($key, 'SHA256', true) : $key;
 
         if ($method) {
-            if (\in_array(\mb_strtolower($method), \openssl_get_cipher_methods(), true)) {
+            if (\in_array(mb_strtolower($method), openssl_get_cipher_methods(), true)) {
                 $this->method = $method;
             } else {
                 throw new CryptException("unrecognised cipher method: {$method}");

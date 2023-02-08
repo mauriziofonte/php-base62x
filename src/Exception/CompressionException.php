@@ -4,8 +4,8 @@ namespace Mfonte\Base62x\Exception;
 
 class CompressionException extends \RuntimeException
 {
-    const REASON = 'Cannot Compress';
-    const CODE = 0;
+    public const REASON = 'Cannot Compress';
+    public const CODE = 0;
 
     public function __construct($compressionAlgo, $reason)
     {
