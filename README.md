@@ -241,19 +241,19 @@ catch(Exception $ex) {
 
 Simply run `composer install` over this module's installation directory.
 
-Then, run `./vendor/bin/phpunit --debug tests`
+Then, run `composer test` to run all the tests.
 
 Some tests **may fail** as **testEncodingWithAllAvailableEncryptionAlgorithms** performs a check over all available **openssl_get_cipher_methods()** installed on your environment. A possible example of failure is `Encryption method "id-aes128-CCM" is either unsupported in your PHP installation or not a valid encryption algorithm.`
 
 ### TODO
 
--   [ ] Fix **Huffman compression**
--   [ ] Add **Bzip2 compression**
+- [ ] Fix **Huffman compression**
+- [ ] Add **Bzip2 compression**
 
 ### Contributing
 
 If you want to contribute to this project, please use php-cs-fixer to format your code to PSR standards and rules
-specified in the configuration file `.php_cs.dist` provided in this repository.
+specified in the configuration file `.php-cs-fixer.dist.php` provided in this repository.
 Thank you!
 
 ### Thank you's
