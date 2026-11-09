@@ -1,145 +1,157 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Mfonte\Base62x\Test\Unit;
 
 use Mfonte\Base62x\Base62x;
 
+/**
+ * Round-trip tests with random payloads and the bundled text fixtures.
+ */
 class EncodingTest extends TestCase
 {
-    private const RANDOM_STRING_LENGTH = 16; // 128
-    private const PASSWORD_STRING_LENGTH = 16; // 16
-    private const SIMPLE_STRING_LINES = 2; // 32
-    private const COMPLEX_STRING_LINES = 5; // 512
+    private const RANDOM_STRING_LENGTH = 16;
+    private const PASSWORD_STRING_LENGTH = 16;
+    private const SIMPLE_STRING_LINES = 2;
+    private const COMPLEX_STRING_LINES = 5;
 
-    public function testEncodingWithoutCompressionSimple()
+    public function testEncodingWithoutCompressionSimple(): void
     {
         $testString = $this->getRandomString(self::RANDOM_STRING_LENGTH);
 
         $encodedString = Base62x::encode($testString)->get();
         $decodedString = Base62x::decode($encodedString)->get();
-        $this->assertEquals($testString, $decodedString);
+        self::assertSame($testString, $decodedString);
     }
 
-    public function testEncodingWithoutCompressionComplex()
+    public function testEncodingWithoutCompressionComplex(): void
     {
         $testString = $this->getRandomText(self::COMPLEX_STRING_LINES);
 
         $encodedString = Base62x::encode($testString)->get();
         $decodedString = Base62x::decode($encodedString)->get();
-        $this->assertEquals($testString, $decodedString);
+        self::assertSame($testString, $decodedString);
     }
 
-    public function testEncodingWithEncryptionSimple()
+    public function testEncodingWithEncryptionSimple(): void
     {
         $testString = $this->getRandomString(self::RANDOM_STRING_LENGTH);
         $password = $this->getRandomString(self::PASSWORD_STRING_LENGTH);
 
-        // \fwrite(\STDERR, 'Normal '.$testString.\chr(10));
         $encodedString = Base62x::encode($testString)->encrypt($password, 'aes-128-ctr')->get();
-        // \fwrite(\STDERR, 'Encoded '.$encodedString.\chr(10));
         $decodedString = Base62x::decode($encodedString)->decrypt($password, 'aes-128-ctr')->get();
-        // \fwrite(\STDERR, 'Decoded '.$decodedString.\chr(10));
-        $this->assertEquals($testString, $decodedString);
+        self::assertSame($testString, $decodedString);
     }
 
-    public function testEncodingWithEncryptionComplex()
+    public function testEncodingWithEncryptionComplex(): void
     {
         $testString = $this->getRandomText(self::COMPLEX_STRING_LINES);
         $password = $this->getRandomString(self::PASSWORD_STRING_LENGTH);
 
         $encodedString = Base62x::encode($testString)->encrypt($password, 'aes-128-ctr')->get();
         $decodedString = Base62x::decode($encodedString)->decrypt($password, 'aes-128-ctr')->get();
-        $this->assertEquals($testString, $decodedString);
+        self::assertSame($testString, $decodedString);
     }
 
-    public function testEncodingWithCompressionSimple()
+    public function testEncodingWithCompressionSimple(): void
     {
         $testString = $this->getRandomString(self::RANDOM_STRING_LENGTH);
 
         $encodedString = Base62x::encode($testString)->compress()->get();
         $decodedString = Base62x::decode($encodedString)->get();
-        $this->assertEquals($testString, $decodedString);
+        self::assertSame($testString, $decodedString);
     }
 
-    public function testEncodingWithCompressionComplex()
+    public function testEncodingWithCompressionComplex(): void
     {
         $testString = $this->getRandomText(self::COMPLEX_STRING_LINES);
 
         $encodedString = Base62x::encode($testString)->compress()->get();
         $decodedString = Base62x::decode($encodedString)->get();
-        $this->assertEquals($testString, $decodedString);
+        self::assertSame($testString, $decodedString);
     }
 
-    public function testEncodingWithCompressionAndEncryptionSimple()
+    public function testEncodingWithCompressionAndEncryptionSimple(): void
     {
         $testString = $this->getRandomString(self::RANDOM_STRING_LENGTH);
         $password = $this->getRandomString(self::PASSWORD_STRING_LENGTH);
 
         $encodedString = Base62x::encode($testString)->encrypt($password)->compress()->get();
         $decodedString = Base62x::decode($encodedString)->decrypt($password)->get();
-        $this->assertEquals($testString, $decodedString);
+        self::assertSame($testString, $decodedString);
     }
 
-    public function testEncodingWithCompressionAndEncryptionComplex()
+    public function testEncodingWithCompressionAndEncryptionComplex(): void
     {
         $testString = $this->getRandomText(self::COMPLEX_STRING_LINES);
         $password = $this->getRandomString(self::PASSWORD_STRING_LENGTH);
 
         $encodedString = Base62x::encode($testString)->encrypt($password)->compress()->get();
         $decodedString = Base62x::decode($encodedString)->decrypt($password)->get();
-        $this->assertEquals($testString, $decodedString);
+        self::assertSame($testString, $decodedString);
     }
 
-    public function testEncodingWithAllAvailableEncryptionAlgorithms()
+    public function testEncodingWithAllSupportedEncryptionAlgorithms(): void
     {
         $testString = $this->getRandomText(self::SIMPLE_STRING_LINES);
         $key = $this->getRandomString(16);
-        $algos = openssl_get_cipher_methods();
 
-        foreach ($algos as $algo) {
-            if (\in_array(mb_strtolower($algo), ['aes-128-ecb', 'aes-192-ecb', 'aes-256-ecb', 'aead'], true)) {
-                // unsupported algorithms that would throw an exception
-                continue;
-            }
-            fwrite(\STDERR, 'Testing Encryption algorithm '.$algo.\chr(10));
+        $tested = 0;
+        foreach (CryptTest::supportedCipherMethods() as $algo) {
             $encodedString = Base62x::encode($testString)->encrypt($key, $algo)->get();
             $decodedString = Base62x::decode($encodedString)->decrypt($key, $algo)->get();
-            $this->assertEquals($testString, $decodedString);
+            self::assertSame($testString, $decodedString, "Round-trip failed with cipher method {$algo}");
+            ++$tested;
         }
+
+        self::assertGreaterThan(0, $tested);
     }
 
-    public function testEncodingWithFixturesWithoutCompression()
+    public function testEncodingWithFixturesWithoutCompression(): void
     {
-        $filesList = ['11-0.txt'];
-        foreach ($filesList as $filename) {
-            $testStream = file_get_contents($this->getFixtureFile($filename));
-            $encodedStream = Base62x::encode($testStream)->get();
-            $decodedStream = Base62x::decode($encodedStream)->get();
-            $this->assertEquals($testStream, $decodedStream);
-        }
+        $testStream = $this->getFixtureContents('11-0.txt');
+
+        $encodedStream = Base62x::encode($testStream)->get();
+        $decodedStream = Base62x::decode($encodedStream)->get();
+        self::assertSame($testStream, $decodedStream);
     }
 
-    public function testEncodingWithFixturesWithCompression()
+    public function testEncodingWithFixturesWithCompression(): void
     {
-        $filesList = ['1080-0.txt'];
-        foreach ($filesList as $filename) {
-            $testStream = file_get_contents($this->getFixtureFile($filename));
-            $encodedStream = Base62x::encode($testStream)->compress()->get();
-            $decodedStream = Base62x::decode($encodedStream)->get();
-            $this->assertEquals($testStream, $decodedStream);
-        }
+        $testStream = $this->getFixtureContents('1080-0.txt');
+
+        $encodedStream = Base62x::encode($testStream)->compress()->get();
+        $decodedStream = Base62x::decode($encodedStream)->get();
+        self::assertSame($testStream, $decodedStream);
     }
 
-    public function testEncodingWithFixturesWithEncryptionAndCompression()
+    public function testEncodingWithFixturesWithHuffmanCompression(): void
     {
-        $filesList = ['1080-0.txt'];
+        $testStream = $this->getFixtureContents('1080-0.txt');
+
+        $encodedStream = Base62x::encode($testStream)->compress('huffman')->get();
+        $decodedStream = Base62x::decode($encodedStream)->get();
+        self::assertSame($testStream, $decodedStream);
+    }
+
+    public function testEncodingWithFixturesWithEncryptionAndCompression(): void
+    {
         $password = $this->getRandomString(self::PASSWORD_STRING_LENGTH);
+        $testStream = $this->getFixtureContents('1080-0.txt');
 
-        foreach ($filesList as $filename) {
-            $testStream = file_get_contents($this->getFixtureFile($filename));
-            $encodedStream = Base62x::encode($testStream)->encrypt($password)->compress()->get();
-            $decodedStream = Base62x::decode($encodedStream)->decrypt($password)->get();
-            $this->assertEquals($testStream, $decodedStream);
-        }
+        $encodedStream = Base62x::encode($testStream)->encrypt($password)->compress()->get();
+        $decodedStream = Base62x::decode($encodedStream)->decrypt($password)->get();
+        self::assertSame($testStream, $decodedStream);
+    }
+
+    public function testCompressedOutputIsShorterForRedundantPayloads(): void
+    {
+        $testStream = $this->getFixtureContents('1080-0.txt');
+
+        self::assertLessThan(
+            \strlen(Base62x::encode($testStream)->get()),
+            \strlen(Base62x::encode($testStream)->compress()->get())
+        );
     }
 }

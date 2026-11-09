@@ -1,22 +1,58 @@
 {
     "name": "mfonte/base62x",
-    "description": "A Base62x PHP implementation library, that can be used in frameworks like Laravel, that supports encoding/decoding of strings, arrays, objects, and binary resources. It also supports Gzip compression/decompression and symmetric encryption.",
+    "description": "Base62x encoding for PHP: a non-symbolic, URL-safe alternative to Base64, with optional Gzip/Huffman compression and symmetric encryption.",
     "keywords": [
         "base62x",
+        "base62",
+        "base64",
         "encoding",
-        "laravel",
+        "url-safe",
         "compression",
-        "encryption"
+        "encryption",
+        "laravel",
+        "bzip2",
+        "zstd",
+        "brotli",
+        "sodium",
+        "stream"
     ],
     "type": "library",
     "license": "Apache-2.0",
+    "homepage": "https://github.com/mauriziofonte/php-base62x",
     "authors": [
         {
             "name": "Maurizio Fonte",
-            "email": "fonte.maurizio@gmail.com"
+            "email": "fonte.maurizio@gmail.com",
+            "role": "Developer"
         }
     ],
-    "minimum-stability": "stable",
+    "support": {
+        "issues": "https://github.com/mauriziofonte/php-base62x/issues",
+        "source": "https://github.com/mauriziofonte/php-base62x",
+        "security": "https://github.com/mauriziofonte/php-base62x/security/policy"
+    },
+    "require": {
+        "php": "^7.2 || ^8.0"
+    },
+    "require-dev": {
+        "friendsofphp/php-cs-fixer": "^3.4",
+        "illuminate/config": "^7.0 || ^8.0 || ^9.0 || ^10.0 || ^11.0 || ^12.0",
+        "illuminate/container": "^7.0 || ^8.0 || ^9.0 || ^10.0 || ^11.0 || ^12.0",
+        "illuminate/contracts": "^7.0 || ^8.0 || ^9.0 || ^10.0 || ^11.0 || ^12.0",
+        "illuminate/support": "^7.0 || ^8.0 || ^9.0 || ^10.0 || ^11.0 || ^12.0",
+        "phpstan/phpstan": "^1.12",
+        "phpunit/phpunit": "^8.5.21 || ^9.6",
+        "vlucas/phpdotenv": "^4.1 || ^5.2"
+    },
+    "suggest": {
+        "ext-brotli": "Required to use Brotli compression",
+        "ext-bz2": "Required to use Bzip2 compression",
+        "ext-openssl": "Required to use encrypt() / decrypt() with OpenSSL cipher methods",
+        "ext-sodium": "Required to use authenticated encryption (XChaCha20-Poly1305)",
+        "ext-zlib": "Required to use Gzip compression",
+        "ext-zstd": "Required to use Zstandard compression",
+        "illuminate/support": "Required to use the Laravel integration (service provider, facade, cast, validation rule)"
+    },
     "autoload": {
         "psr-4": {
             "Mfonte\\Base62x\\": "src/"
@@ -27,19 +63,37 @@
             "Mfonte\\Base62x\\Test\\": "tests/"
         }
     },
-    "require": {
-        "php": ">=7.2"
+    "extra": {
+        "laravel": {
+            "providers": [
+                "Mfonte\\Base62x\\Laravel\\Base62xServiceProvider"
+            ],
+            "aliases": {
+                "Base62x": "Mfonte\\Base62x\\Laravel\\Facades\\Base62x"
+            }
+        }
     },
-    "require-dev": {
-        "friendsofphp/php-cs-fixer": "^3.4",
-        "phpunit/phpunit": "^8",
-        "phpstan/phpstan": "^1.9",
-        "php-coveralls/php-coveralls": "^2.5.3",
-        "orchestra/testbench": "^3.5.6"
+    "config": {
+        "sort-packages": true
     },
+    "minimum-stability": "stable",
+    "prefer-stable": true,
     "scripts": {
+        "analyse": "@php vendor/bin/phpstan analyse --memory-limit=512M",
+        "cs": "@php vendor/bin/php-cs-fixer fix --dry-run --diff",
         "fix": "@php vendor/bin/php-cs-fixer fix",
         "test": "@php vendor/bin/phpunit --colors=always",
-        "analyse": "@php vendor/bin/phpstan analyse src --level 4"
+        "ci": [
+            "@cs",
+            "@analyse",
+            "@test"
+        ]
+    },
+    "scripts-descriptions": {
+        "analyse": "Run PHPStan static analysis",
+        "cs": "Check coding style without modifying files",
+        "fix": "Fix coding style",
+        "test": "Run the PHPUnit test suite",
+        "ci": "Run every quality check, as CI does"
     }
 }

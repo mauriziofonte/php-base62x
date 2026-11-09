@@ -1,0 +1,340 @@
+{
+    "_comment": "Base62x interoperability vectors, generated with the reference implementations of https://github.com/wadelau/Base62x (commit 248ad92) (Base62x.class.php, Base62x.py, Base62x.class.js). Text vectors are UTF-8.",
+    "vectors": [
+        {
+            "input_hex": "61",
+            "text": "a",
+            "encoded": "ax",
+            "verified_with": [
+                "php",
+                "python",
+                "javascript"
+            ]
+        },
+        {
+            "input_hex": "30",
+            "text": "0",
+            "encoded": "0x",
+            "verified_with": [
+                "php",
+                "python",
+                "javascript"
+            ]
+        },
+        {
+            "input_hex": "78",
+            "text": "x",
+            "encoded": "xxx",
+            "verified_with": [
+                "php",
+                "python",
+                "javascript"
+            ]
+        },
+        {
+            "input_hex": "7878",
+            "text": "xx",
+            "encoded": "xxxxx",
+            "verified_with": [
+                "php",
+                "python",
+                "javascript"
+            ]
+        },
+        {
+            "input_hex": "48656c6c6f2c204261736536327821",
+            "text": "Hello, Base62x!",
+            "encoded": "HelloxdxRBase62xxxSx",
+            "verified_with": [
+                "php",
+                "python",
+                "javascript"
+            ]
+        },
+        {
+            "input_hex": "54686520717569636b2062726f776e20666f78206a756d7073206f76657220746865206c617a7920646f67",
+            "text": "The quick brown fox jumps over the lazy dog",
+            "encoded": "ThexRquickxRbrownxRfoxxxRjumpsxRoverxRthexRlazyxRdogx",
+            "verified_with": [
+                "php",
+                "python",
+                "javascript"
+            ]
+        },
+        {
+            "input_hex": "6162636431323334782765666738393b3031",
+            "text": "abcd1234x'efg89;01",
+            "encoded": "abcd1234xxxYefg89xi01x",
+            "verified_with": [
+                "php",
+                "python",
+                "javascript"
+            ]
+        },
+        {
+            "input_hex": "766172205f746b64203d205f746b64207c7c205b5d3b202f2fe782b9e587bbe9878fe7bb9fe8aea1e794a8",
+            "text": "var _tkd = _tkd || []; //点击量统计用",
+            "encoded": "Tc5o85x1qQsGWFI1VT6ja87nz85jTEo0lBx2U2kUM7kx2c7Zx2Uydx2YkeUUKg0",
+            "verified_with": [
+                "php",
+                "python",
+                "javascript"
+            ]
+        },
+        {
+            "input_hex": "61626364e4b8ade6968731323334e58c97e4baac3435363b372d383930",
+            "text": "abcd中文1234北京456;7-890",
+            "encoded": "OM9ZPEIuhUQMXp4oCpJbZ9VakgmqDJOyDoquEJ0",
+            "verified_with": [
+                "php",
+                "python",
+                "javascript"
+            ]
+        },
+        {
+            "input_hex": "43616666c3a820e29895206e61c3af766520e2809420e697a5e69cace8aa9e20f09f9a80",
+            "text": "Caffè ☕ naïve — 日本語 🚀",
+            "encoded": "Gs5cPiEe8EAObI1kOSElTcKWue2K8EQNfUQShEYgdY3mdvg0",
+            "verified_with": [
+                "php",
+                "python",
+                "javascript"
+            ]
+        },
+        {
+            "input_hex": "6c696e65310d0a6c696e653209746162",
+            "text": "line1\r\nline2\ttab",
+            "encoded": "line1xGxDline2xCtabx",
+            "verified_with": [
+                "php",
+                "python",
+                "javascript"
+            ]
+        },
+        {
+            "input_hex": "7b226a736f6e223a5b312c322c335d2c226b223a2276227d",
+            "text": "{\"json\":[1,2,3],\"k\":\"v\"}",
+            "encoded": "xuxTjsonxTxhxo1xd2xd3xqxdxTkxTxhxTvxTxwx",
+            "verified_with": [
+                "php",
+                "python",
+                "javascript"
+            ]
+        },
+        {
+            "input_hex": "68747470733a2f2f6578616d706c652e636f6d2f706174683f713d3126723d74776f2366726167",
+            "text": "https://example.com/path?q=1&r=two#frag",
+            "encoded": "httpsxhxgxgexxamplexfcomxgpathxmqxk1xXrxktwoxUfragx",
+            "verified_with": [
+                "php",
+                "python",
+                "javascript"
+            ]
+        },
+        {
+            "input_hex": "7e21402324255e262a28295f2b602d3d5b5d5c7b7d7c3b273a222c2e2f3c3e3f",
+            "text": "~!@#$%^&*()_+`-=[]\\{}|;':\",./<>?",
+            "encoded": "xyxSxnxUxVxWxrxXxbxZxaxsxcxtxexkxoxqxpxuxwxvxixYxhxTxdxfxgxjxlxmx",
+            "verified_with": [
+                "php",
+                "python",
+                "javascript"
+            ]
+        },
+        {
+            "input_hex": "c380c381c382c383c384c385c386c387c388c389c38ac38bc38cc38dc38ec38f",
+            "text": "ÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏ",
+            "encoded": "mu33WSE2muF3XCE5muR3XzE8mud3YiEBmup3ZSEEmuF",
+            "verified_with": [
+                "php",
+                "python",
+                "javascript"
+            ]
+        },
+        {
+            "input_hex": "cea9cebcceadceb3ceb1",
+            "text": "Ωμέγα",
+            "encoded": "pgdElCwjphFEi1",
+            "verified_with": [
+                "php",
+                "python",
+                "javascript"
+            ]
+        },
+        {
+            "input_hex": "f09f9982f09f9983f09f9889",
+            "text": "🙂🙃😉",
+            "encoded": "z9x2PWl2VcOFmdvY9",
+            "verified_with": [
+                "php",
+                "python",
+                "javascript"
+            ]
+        },
+        {
+            "input_hex": "6162",
+            "text": "ab",
+            "encoded": "abx",
+            "verified_with": [
+                "php",
+                "python",
+                "javascript"
+            ]
+        },
+        {
+            "input_hex": "616263",
+            "text": "abc",
+            "encoded": "abcx",
+            "verified_with": [
+                "php",
+                "python",
+                "javascript"
+            ]
+        },
+        {
+            "input_hex": "61626364",
+            "text": "abcd",
+            "encoded": "abcdx",
+            "verified_with": [
+                "php",
+                "python",
+                "javascript"
+            ]
+        },
+        {
+            "input_hex": "c3a9",
+            "text": "é",
+            "encoded": "mw9",
+            "verified_with": [
+                "php",
+                "python",
+                "javascript"
+            ]
+        },
+        {
+            "input_hex": "c3a9c3a9",
+            "text": "éé",
+            "encoded": "mwd3g1",
+            "verified_with": [
+                "php",
+                "python",
+                "javascript"
+            ]
+        },
+        {
+            "input_hex": "c3a9c3a9c3a9",
+            "text": "ééé",
+            "encoded": "mwd3gSEf",
+            "verified_with": [
+                "php",
+                "python",
+                "javascript"
+            ]
+        },
+        {
+            "input_hex": "00",
+            "encoded": "x4x",
+            "verified_with": [
+                "php"
+            ]
+        },
+        {
+            "input_hex": "ff",
+            "encoded": "x33",
+            "verified_with": [
+                "php"
+            ]
+        },
+        {
+            "input_hex": "000102",
+            "encoded": "x4x5x6x",
+            "verified_with": [
+                "php"
+            ]
+        },
+        {
+            "input_hex": "feff007f",
+            "encoded": "x3lz0V3",
+            "verified_with": [
+                "php"
+            ]
+        },
+        {
+            "input_hex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f404142434445464748494a4b4c4d4e4f505152535455565758595a5b5c5d5e5f606162636465666768696a6b6c6d6e6f707172737475767778797a7b7c7d7e7f808182838485868788898a8b8c8d8e8f909192939495969798999a9b9c9d9e9fa0a1a2a3a4a5a6a7a8a9aaabacadaeafb0b1b2b3b4b5b6b7b8b9babbbcbdbebfc0c1c2c3c4c5c6c7c8c9cacbcccdcecfd0d1d2d3d4d5d6d7d8d9dadbdcdddedfe0e1e2e3e4e5e6e7e8e9eaebecedeeeff0f1f2f3f4f5f6f7f8f9fafbfcfdfeff",
+            "encoded": "00420mG51WS82GeB30qE3n0H4XCK5HON61aQ6nmT7XzW8I8Z92Kc9oWfAYiiBIulC34oCpGrDZSuEJeyF3qx2Fq11GaD4HKP7I4bAIqnDJax1GKL9JL5LMLrXPMbjSNLvVO65YOsHbPcTeQMfhR6rkRt1nSdDqTNPtU7bwUtnx1Vdx20WOA3X8M6XuY9YekCZOwFa96IavILbfUOcPgRd9sUdw2XegEafQQdgAcggwojhgx2miRApjBMsjyYvkhkzlRwx3mC72mzJ5niV8oShBpCtEpx13HqjFKrTRNsDdQsx1pTtjx3WuUBZvENcvx2ZfwkliyUylzF7ozx3Jrx1lVux2Vhyx3Ftx2x33",
+            "verified_with": [
+                "php"
+            ]
+        },
+        {
+            "input_hex": "185189730b3ab511649eada5615d49e873f5c1",
+            "encoded": "6569SmiwjH5adgsbOLr9w7Frm1",
+            "verified_with": [
+                "php"
+            ]
+        },
+        {
+            "input_hex": "8a531e156a884e808d810c517ae1b9e3c8c77cdeb4a3f2e890f5db5dd349f622d7",
+            "encoded": "YbCU5Mg8Je2DWGnHUk6vuzZ7VDwqex3BeaFNRNTD9x1YBN",
+            "verified_with": [
+                "php"
+            ]
+        },
+        {
+            "input_hex": "2380",
+            "encoded": "8u0",
+            "verified_with": [
+                "php"
+            ]
+        },
+        {
+            "input_hex": "c79733e9cbef15acbb73840850c5de726d94d3314043ba481672df442ac2649c0f1ec4437ad8",
+            "encoded": "nvSpwSll5QoySuG8KCNUScsKqp50Gyf85dBVH2h2P9mF7iH3Uj8",
+            "verified_with": [
+                "php"
+            ]
+        },
+        {
+            "input_hex": "cae2624ff6da839e39f35e8a697ffdc233014fe667b751d574451414ba6874587761",
+            "encoded": "ok9YJx3RQWvuvzrwAQNx3x1mZC1Jx2Pdjr7LT4KK5BfeT5XtO1",
+            "verified_with": [
+                "php"
+            ]
+        },
+        {
+            "input_hex": "96684ba282b2fc2d2be62264311f82",
+            "encoded": "bcXBeeAox32qhvY9aCHx22",
+            "verified_with": [
+                "php"
+            ]
+        },
+        {
+            "input_hex": "b9915351fdd9d472dafd6df94486",
+            "encoded": "kP5JKVtPr7BQx3MtvH86",
+            "verified_with": [
+                "php"
+            ]
+        },
+        {
+            "input_hex": "958f106cd21c0a64140ed1dea10235e5f5970738aa7476a9c9e7deef43335803d99751ea91da98b6fba7d4",
+            "encoded": "bOzGRD8S2cGK3j7UeG8rvVMN1pYgT7QfoUVUyqCpM0FPbr7gaTgOjlkdr0",
+            "verified_with": [
+                "php"
+            ]
+        },
+        {
+            "input_hex": "fc4bcaf075d395082ca9f2ec3f32035394f63aa7bbf489bb012a7f9c096ab1dd9301114850551eeb4dac5c1b",
+            "encoded": "x34lAz7NJbGWigVBiFp83KvJsEgUyx18cy0Ifx3d0bgiTsJ0H58K5KUwqsiN1B",
+            "verified_with": [
+                "php"
+            ]
+        },
+        {
+            "input_hex": "0e4bc602c6761ec2bfbadf80952621110064a1fafced83d97edb83d53c675c625f8912628c474fc1d077a1",
+            "encoded": "3al60iPs7iAx3kjx20bIOX4G1aeVhzyOFPVjk3rJndN69VYH9YZ4TFmT1te1",
+            "verified_with": [
+                "php"
+            ]
+        }
+    ]
+}

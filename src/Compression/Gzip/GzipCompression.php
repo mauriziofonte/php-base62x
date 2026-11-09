@@ -1,67 +1,89 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Mfonte\Base62x\Compression\Gzip;
 
 use Mfonte\Base62x\Exception\CompressionException;
 
+/**
+ * Gzip compression, with "gzip" (RFC 1952), "zlib" (RFC 1950) or "deflate" (RFC 1951) encoding.
+ *
+ * @internal This class is not part of the public API: use Base62x::compress()
+ */
 class GzipCompression
 {
-    public static function encode($data, $encoding = null)
-    {
-        if (!\function_exists('gzencode')) {
-            throw new CompressionException('gzip', 'Cannot use Gzip as compression algorithm: the current PHP installation does not support this module.');
-        }
+    private const LEVEL = 9;
 
-        $encoded = false;
+    /**
+     * Compresses the data. The compressed output is base64 encoded.
+     *
+     * NOTE: the base64 step is not strictly needed (the Base62x encoder is binary safe),
+     * but it is part of the wire format and kept for backward compatibility.
+     *
+     * @param string|null $encoding One of "gzip" (default), "zlib" or "deflate"
+     *
+     * @throws CompressionException
+     */
+    public static function encode(string $data, ?string $encoding = null): string
+    {
+        self::assertAvailable();
+
         switch ($encoding) {
             case 'zlib':
-                $encoded = @gzcompress($data, 9);
-            break;
+                $encoded = @gzcompress($data, self::LEVEL);
+                break;
             case 'deflate':
-                $encoded = @gzdeflate($data, 9);
-            break;
+                $encoded = @gzdeflate($data, self::LEVEL);
+                break;
             case 'gzip':
-                $encoded = @gzencode($data, 9);
-            break;
+            case null:
+                $encoded = @gzencode($data, self::LEVEL);
+                break;
             default:
-                $encoded = @gzencode($data, 9);
+                throw new CompressionException('gzip', 'Unsupported encoding "'.$encoding.'".');
         }
 
         if ($encoded === false) {
             throw new CompressionException('gzip', 'The gz compression function returned a false state while compressing the input data.');
         }
 
-        // avoid data errors: perform a base64_encode prior of returning
-        $encoded = base64_encode($encoded);
-
-        return $encoded;
+        return base64_encode($encoded);
     }
 
-    public static function decode($data, $encoding = null)
+    /**
+     * Decompresses data that was compressed with self::encode().
+     *
+     * @param string|null $encoding One of "gzip" (default), "zlib" or "deflate"
+     *
+     * @throws CompressionException
+     */
+    public static function decode(string $data, ?string $encoding = null): string
     {
-        if (!\function_exists('gzdecode')) {
-            throw new CompressionException('gzip', 'Cannot use Gzip as compression algorithm: the current PHP installation does not support this module.');
-        }
+        self::assertAvailable();
 
         // the data comes encoded in base64: see above
         $data = base64_decode($data, true);
+        if ($data === false) {
+            throw new CompressionException('gzip', 'The compressed data is not valid base64.');
+        }
 
-        $fn = 'gzdecode';
-        $decoded = false;
         switch ($encoding) {
             case 'zlib':
                 $fn = 'gzuncompress';
                 $decoded = @gzuncompress($data);
-            break;
+                break;
             case 'deflate':
                 $fn = 'gzinflate';
                 $decoded = @gzinflate($data);
-            break;
+                break;
             case 'gzip':
+            case null:
+                $fn = 'gzdecode';
                 $decoded = @gzdecode($data);
-            break;
+                break;
             default:
-                $decoded = @gzdecode($data);
+                throw new CompressionException('gzip', 'Unsupported encoding "'.$encoding.'".');
         }
 
         if ($decoded === false) {
@@ -69,5 +91,15 @@ class GzipCompression
         }
 
         return $decoded;
+    }
+
+    /**
+     * @throws CompressionException
+     */
+    private static function assertAvailable(): void
+    {
+        if (!\extension_loaded('zlib')) {
+            throw new CompressionException('gzip', 'Cannot use Gzip as compression algorithm: the current PHP installation does not support the zlib extension.');
+        }
     }
 }

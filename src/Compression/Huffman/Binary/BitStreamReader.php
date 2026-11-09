@@ -1,42 +1,50 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Mfonte\Base62x\Compression\Huffman\Binary;
 
 /**
- *	turns string data into a stream of bits.
+ * Turns string data into a stream of bits.
+ *
+ * @internal
  */
 class BitStreamReader
 {
-    private $dataArray = null;
+    /**
+     * @var BitArray
+     */
+    private $dataArray;
+
+    /**
+     * @var int
+     */
     private $cursor = 0;
 
     /**
-     *	To initialize, provide string data containing the bits.
+     * To initialize, provide string data containing the bits.
      */
-    public function __construct($data)
+    public function __construct(string $data)
     {
         $this->dataArray = BitArray::load($data);
     }
 
     /**
-     *	read one bit at a time from the buffer, returning null for EOF.
+     * Reads one bit at a time from the buffer, returning null for EOF.
      */
-    public function readBit()
+    public function readBit(): ?int
     {
         if ($this->isEOF()) {
             return null;
-        } else {
-            $bit = $this->dataArray[$this->cursor];
-            ++$this->cursor;
-
-            return $bit;
         }
+
+        return $this->dataArray[$this->cursor++];
     }
 
     /**
-     *	whether we've reached the end of our data.
+     * Whether we've reached the end of our data.
      */
-    public function isEOF()
+    public function isEOF(): bool
     {
         return !$this->dataArray->offsetExists($this->cursor);
     }

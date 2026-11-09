@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Mfonte\Base62x\Compression\Huffman;
 
 use Mfonte\Base62x\Exception\CompressionException;
@@ -7,71 +9,80 @@ use Mfonte\Base62x\Compression\Huffman\Binary\BitStreamReader;
 use Mfonte\Base62x\Compression\Huffman\Binary\BitStreamWriter;
 
 /**
- *	Implementation of a Huffman Coding
- *	http://en.wikipedia.org/wiki/Huffman_coding.
+ * Implementation of a Huffman Coding.
+ *
+ * @see https://en.wikipedia.org/wiki/Huffman_coding
+ *
+ * @internal This class is not part of the public API: use Base62x::compress('huffman')
  */
 class HuffmanCoding
 {
     public const SYMBOL_EOF = 'EOF';
 
     /**
-     * 	create a code tree whose weights and symbols come from the sample indicated
-     * 	NOTE: if a character isn't in this sample, it can't be encoded with the generated tree.
+     * Creates a code tree whose weights and symbols come from the sample indicated.
+     * NOTE: if a byte isn't in this sample, it can't be encoded with the generated tree.
+     *
+     * @throws CompressionException
      */
-    public static function createCodeTree($sample)
+    public static function createCodeTree(string $sample): HuffmanNode
     {
         $weights = [];
-        for ($i = 0; $i < mb_strlen($sample); ++$i) {
-            if (!isset($weights[$sample[$i]])) {
-                $weights[$sample[$i]] = 0;
-            }
-            ++$weights[$sample[$i]];
+        $counts = count_chars($sample, 1);
+        foreach (\is_array($counts) ? $counts : [] as $byte => $count) {
+            $weights[\chr($byte)] = $count;
         }
-        $weights[self::SYMBOL_EOF] = 1;	//	add the EOF marker to the encoding
+        $weights[self::SYMBOL_EOF] = 1; // add the EOF marker to the encoding
 
         $queue = new HuffmanNodeQueue();
         arsort($weights);
         foreach ($weights as $symbol => $weight) {
-            $queue->addNode(new HuffmanNode($symbol, $weight));
+            // numeric-string array keys are cast to int by PHP: cast them back
+            $queue->addNode(new HuffmanNode((string) $symbol, $weight));
         }
 
         while ($nodes = $queue->popTwoNodes()) {
-            $parentNode = HuffmanNode::join($nodes[0], $nodes[1]);
-            $queue->addNode($parentNode);
+            $queue->addNode(HuffmanNode::join($nodes[0], $nodes[1]));
         }
 
         return $queue->getOnlyNode();
     }
 
     /**
-     * 	encode the given data using the Huffman tree.
+     * Encodes the given data using the Huffman tree. The serialized tree is prepended to the output.
+     *
+     * @throws CompressionException
      */
-    public static function encode($data, HuffmanNode $codeTree)
+    public static function encode(string $data, HuffmanNode $codeTree): string
     {
         $codeHash = [];
         $codeTree->getCodeHash($codeHash);
         $stream = new BitStreamWriter();
-        for ($i = 0; $i < mb_strlen($data); ++$i) {
+        $length = \strlen($data);
+        for ($i = 0; $i < $length; ++$i) {
             $symbol = $data[$i];
-            if (isset($codeHash[$symbol])) {
-                $stream->writeString($codeHash[$symbol]);
-            } else {
-                throw new CompressionException('huffman', "NOTE: Cannot encode symbol {$symbol}. It was not found in the encoding tree.");
+            if (!isset($codeHash[$symbol])) {
+                throw new CompressionException('huffman', 'Cannot encode byte 0x'.bin2hex($symbol).': it was not found in the encoding tree.');
             }
+            $stream->writeString($codeHash[$symbol]);
         }
         $stream->writeString($codeHash[self::SYMBOL_EOF]);
-        $encodedTree = (string) $codeTree;
-        $encodedData = $stream->getData();
 
-        return $encodedTree.$encodedData;
+        return $codeTree.$stream->getData();
     }
 
     /**
-     * 	decode the data using the code tree.
+     * Decodes data produced by self::encode().
+     *
+     * @throws CompressionException
      */
-    public static function decode($data)
+    public static function decode(string $data): string
     {
         $rootNode = HuffmanNode::loadFromString($data);
+        if ($rootNode->isLeaf()) {
+            // a valid tree always has at least two leaves (a symbol and EOF): a single leaf would loop forever
+            throw new CompressionException('huffman', 'Encoding is out of sync.');
+        }
         $currentNode = $rootNode;
         $reader = new BitStreamReader($data);
         $decoded = '';
@@ -80,20 +91,21 @@ class HuffmanCoding
                 $nextSymbol = $currentNode->getSymbol();
                 if ($nextSymbol === self::SYMBOL_EOF) {
                     return $decoded;
-                } else {
-                    $decoded .= $nextSymbol;
-                    $currentNode = $rootNode;
                 }
-            } else {
-                $bit = $reader->readBit();
-                if ($bit === null) {
-                    throw new CompressionException('huffman', 'Reached the end of the encoded data, but did not find the EOF symbol.');
-                } else {
-                    $currentNode = $bit
-                        ? $currentNode->getRightChild()
-                        : $currentNode->getLeftChild();
-                }
+                $decoded .= $nextSymbol;
+                $currentNode = $rootNode;
+                continue;
             }
+
+            $bit = $reader->readBit();
+            if ($bit === null) {
+                throw new CompressionException('huffman', 'Reached the end of the encoded data, but did not find the EOF symbol.');
+            }
+            $nextNode = $bit === 1 ? $currentNode->getRightChild() : $currentNode->getLeftChild();
+            if ($nextNode === null) {
+                throw new CompressionException('huffman', 'Encoding is out of sync.');
+            }
+            $currentNode = $nextNode;
         }
     }
 }

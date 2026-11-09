@@ -1,32 +1,29 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Mfonte\Base62x\Encoding;
 
-// source: https://github.com/wadelau/Base62x/blob/master/Base62x.class.php
+use Mfonte\Base62x\Exception\DecodeException;
 
-/*
- * -Base62x in -PHP
- * Wadelau@ufqi.com
- * Refers to
-    http://ieeexplore.ieee.org/xpl/freeabs_all.jsp?arnumber=6020065
-    -GitHub-Wadelau , base62x.c
-    https://github.com/wadelau/Base62x
-    https://ufqi.com/dev/base62x/?_via=-naturedns
- * Tue Aug  9 21:18:14 CST 2016
- * bugfix, 13:39 13 September 2016
- * bugfix, Thu Sep 29 04:06:26 UTC 2016
- * imprvs on numeric conversion, Fri Oct  7 03:42:59 UTC 2016
- * bugifx by _decodeByLength, 20:40 28 November 2016
- * imprvs on decode, Mon Mar 11 03:07:37 GMT 2019
+/**
+ * Low-level, binary safe Base62x encoder/decoder.
+ *
+ * Port of the reference implementation by Wade Lau (Wadelau@ufqi.com):
+ *
+ * @see https://github.com/wadelau/Base62x
+ * @see https://ieeexplore.ieee.org/document/6020065
+ *
+ * Two output flavors exist:
+ *  - "ASCII" (asctype 1): used when the input is made of printable-ish ASCII bytes only. Bytes are kept as-is,
+ *    except symbols and control chars, that are escaped as "x" + one alphanumeric char. A trailing "x" marks it.
+ *  - "binary" (asctype 0): every 3 bytes become 4 symbols of 6 bits; symbols 61, 62 and 63 are escaped as "x1",
+ *    "x2" and "x3".
+ *
+ * @internal This class is not part of the public API: use \Mfonte\Base62x\Base62x
  */
-
 class Base62x
 {
-    // variables
-
-    public $isdebug = false;
-    public $i = 0;
-    public $codetype = 0; // 0:encode, 1:decode
     public const XTAG = 'x';
     public const ENCD = '-enc';
     public const DECD = '-dec';
@@ -39,469 +36,416 @@ class Base62x
         'q', 'r', 's', 't', 'u', 'v', 'w', 'y', 'z', '1', '2', '3', 'x', ];
     public const bpos = 60; // 0-60 chars
     public const xpos = 64; // b62x[64] = 'x'
-    public static $rb62x = [];
     public const ascmax = 127;
     public const asclist = ['4', '5', '6', '7', '8', '9', '0',
         'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N',
         'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z', 'a', 'b',
         'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p',
         'q', 'r', 's', 't', 'u', 'v', 'w', 'y', 'z', ]; // 58
-    public $ascidx = [];
-    public $ascrlist = [];
     public const max_safe_base = 36;
-    public const base59 = 59; // static $rb62xyz = array(); static $b62xyz = array();
+    public const base59 = 59;
+
+    /**
+     * Byte ranges [start, end) of the ASCII bytes that are escaped in the "ASCII" flavor, mapped in order to asclist.
+     */
+    private const ASCII_ESCAPED_RANGES = [[0, 17], [21, 28], [32, 48], [58, 65], [91, 97], [123, self::ascmax + 1]];
+
+    /**
+     * @deprecated unused, kept for backward compatibility
+     *
+     * @var bool
+     */
+    public $isdebug = false;
+
+    /**
+     * @deprecated unused, kept for backward compatibility
+     *
+     * @var int
+     */
+    public $i = 0;
+
+    /**
+     * @deprecated unused, kept for backward compatibility
+     *
+     * @var int
+     */
+    public $codetype = 0;
+
+    /**
+     * @deprecated unused, kept for backward compatibility
+     *
+     * @var array<int|string, int>
+     */
+    public static $rb62x = [];
+
+    /**
+     * @deprecated unused, kept for backward compatibility
+     *
+     * @var array<int, string>
+     */
+    public $ascidx = [];
+
+    /**
+     * @deprecated unused, kept for backward compatibility
+     *
+     * @var array<int|string, int>
+     */
+    public $ascrlist = [];
+
+    /**
+     * @deprecated unused, kept for backward compatibility
+     *
+     * @var float
+     */
     public static $ver = 0.9;
 
-    // methods
-
-    // encode, ibase=2,8,10,16,32...
+    /**
+     * Encodes a (binary) string, or converts a number from base $ibase to Base62x when $ibase is given.
+     *
+     * @param string|int|null $input
+     * @param int|null        $ibase Input base (2, 8, 10, 16, 32...) for numeric conversion
+     *
+     * @return string|int|null
+     */
     public static function encode($input, $ibase = null)
     {
-        $output = null;
-        if ($input == null || $input == '') {
+        if ($input === null || $input === '') {
             return $input;
         }
 
-        $codetype = 0;
-        $xtag = self::XTAG;
-        $b62x = self::b62x;
-        $asclist = self::asclist;
-        $bpos = self::bpos;
-        $xpos = self::xpos;
-        $ascmax = self::ascmax;
-        //$max_safe_base = self::max_safe_base;
+        if ($ibase !== null && $ibase > 0) {
+            $decimal = self::xx2dec((string) $input, (int) $ibase, self::reverseAlphabet());
 
-        $rb62x = self::fillRb62x($b62x, $bpos, $xpos);
-        $isNum = false;
-        if ($ibase > 0) {
-            $isNum = true;
-        }
-        if ($isNum) {
-            $num_input = self::xx2dec($input, $ibase, $rb62x);
-            $obase = $xpos;
-            $output = self::dec2xx($num_input, $obase, $b62x);
-        // why a mediate number format is needed?
-        } else {
-            // string
-            $ascidx = [];
-            $ascrlist = [];
-            $inputArr = mb_str_split($input);
-            $inputlen = \count($inputArr);
-            //if(!isset($ascidx)){ $ascidx = array(); }
-            //if(!isset($ascrlist)){ $ascrlist = array(); }
-            $setResult = self::setAscii($codetype, $inputArr, $ascidx, $ascmax, $asclist, $ascrlist);
-            $asctype = $setResult['asctype'];
-            $ascidx = $setResult['ascidx'];
-            $ascrlist = $setResult['ascrlist'];
-
-            $op = [];
-            $i = 0;
-            $m = 0;
-            if ($asctype == 1) {
-                $ixtag = \ord($xtag);
-                do {
-                    $inputArr[$i] = \ord($inputArr[$i]);
-                    if ($ascidx[$inputArr[$i]] > -1) {
-                        $op[$m] = $xtag;
-                        $op[++$m] = $ascidx[$inputArr[$i]];
-                    } elseif ($inputArr[$i] == $ixtag) {
-                        $op[$m] = $xtag;
-                        $op[++$m] = $xtag;
-                    } else {
-                        $op[$m] = \chr((int) ($inputArr[$i]));
-                    }
-                    ++$m;
-                } while (++$i < $inputlen);
-                $op[$m] = $xtag; // asctype=1 has a tag 'x' appended
-            } else {
-                $c0 = 0;
-                $c1 = 0;
-                $c2 = 0;
-                $c3 = 0;
-                do {
-                    $remaini = $inputlen - $i;
-                    $inputArr[$i] = \ord($inputArr[$i]);
-                    if ($remaini > 2) {
-                        $inputArr[$i + 1] = \ord($inputArr[$i + 1]);
-                        $inputArr[$i + 2] = \ord($inputArr[$i + 2]);
-                        $c0 = $inputArr[$i] >> 2;
-                        $c1 = ((($inputArr[$i] << 6) & 0xFF) >> 2) | ($inputArr[$i + 1] >> 4);
-                        $c2 = ((($inputArr[$i + 1] << 4) & 0xFF) >> 2) | ($inputArr[$i + 2] >> 6);
-                        $c3 = (($inputArr[$i + 2] << 2) & 0xFF) >> 2;
-                        if ($c0 > $bpos) {
-                            $op[$m] = $xtag;
-                            $op[++$m] = $b62x[$c0];
-                        } else {
-                            $op[$m] = $b62x[$c0];
-                        }
-                        if ($c1 > $bpos) {
-                            $op[++$m] = $xtag;
-                            $op[++$m] = $b62x[$c1];
-                        } else {
-                            $op[++$m] = $b62x[$c1];
-                        }
-                        if ($c2 > $bpos) {
-                            $op[++$m] = $xtag;
-                            $op[++$m] = $b62x[$c2];
-                        } else {
-                            $op[++$m] = $b62x[$c2];
-                        }
-                        if ($c3 > $bpos) {
-                            $op[++$m] = $xtag;
-                            $op[++$m] = $b62x[$c3];
-                        } else {
-                            $op[++$m] = $b62x[$c3];
-                        }
-                        $i += 2;
-                    } elseif ($remaini == 2) {
-                        $inputArr[$i + 1] = \ord($inputArr[$i + 1]);
-                        $c0 = $inputArr[$i] >> 2;
-                        $c1 = ((($inputArr[$i] << 6) & 0xFF) >> 2) | ($inputArr[$i + 1] >> 4);
-                        $c2 = (($inputArr[$i + 1] << 4) & 0xFF) >> 4;
-                        if ($c0 > $bpos) {
-                            $op[$m] = $xtag;
-                            $op[++$m] = $b62x[$c0];
-                        } else {
-                            $op[$m] = $b62x[$c0];
-                        }
-                        if ($c1 > $bpos) {
-                            $op[++$m] = $xtag;
-                            $op[++$m] = $b62x[$c1];
-                        } else {
-                            $op[++$m] = $b62x[$c1];
-                        }
-                        if ($c2 > $bpos) {
-                            $op[++$m] = $xtag;
-                            $op[++$m] = $b62x[$c2];
-                        } else {
-                            $op[++$m] = $b62x[$c2];
-                        }
-                        ++$i;
-                    } else { // == 1
-                        $c0 = $inputArr[$i] >> 2;
-                        $c1 = (($inputArr[$i] << 6) & 0xFF) >> 6;
-                        if ($c0 > $bpos) {
-                            $op[$m] = $xtag;
-                            $op[++$m] = $b62x[$c0];
-                        } else {
-                            $op[$m] = $b62x[$c0];
-                        }
-                        if ($c1 > $bpos) {
-                            $op[++$m] = $xtag;
-                            $op[++$m] = $b62x[$c1];
-                        } else {
-                            $op[++$m] = $b62x[$c1];
-                        }
-                    }
-                    ++$m;
-                } while (++$i < $inputlen);
-            }
-            $output = implode('', $op);
+            return self::dec2xx($decimal, self::xpos, self::b62x);
         }
 
-        return $output;
+        $input = (string) $input;
+
+        return self::isAsciiEncodable($input) ? self::encodeAscii($input) : self::encodeBinary($input);
     }
 
-    // decode, obase=2,8,10,16,32...
+    /**
+     * Decodes a Base62x string, or converts a Base62x number to base $obase when $obase is given.
+     *
+     * @param string|int|null $input
+     * @param int|null        $obase Output base (2, 8, 10, 16, 32...) for numeric conversion
+     *
+     * @throws DecodeException if the input is not valid Base62x
+     *
+     * @return string|int|null
+     */
     public static function decode($input, $obase = null)
     {
-        $output = '';
-        if ($input == null || $input == '') {
+        if ($input === null || $input === '') {
             return $input;
         }
 
-        $codetype = 1;
-        $xtag = self::XTAG;
-        $b62x = self::b62x;
-        $asclist = self::asclist;
-        $bpos = self::bpos;
-        $xpos = self::xpos;
-        $ascmax = self::ascmax;
-        $rb62x = self::fillRb62x($b62x, $bpos, $xpos);
-        //$max_safe_base = self::max_safe_base;
+        if ($obase !== null && $obase > 0) {
+            $decimal = self::xx2dec((string) $input, self::xpos, self::reverseAlphabet());
 
-        $isNum = false;
-        if ($obase > 0) {
-            $isNum = true;
+            return self::dec2xx($decimal, (int) $obase, self::b62x);
         }
-        if ($isNum) {
-            $output = 0;
-            $ibase = $xpos;
-            $num_input = self::xx2dec($input, $ibase, $rb62x);
-            $output = self::dec2xx($num_input, $obase, $b62x);
-        // why a mediate number format is needed?
-        } else {
-            // string
-            $ascidx = [];
-            $ascrlist = [];
-            $inputArr = mb_str_split($input);
-            $inputlen = \count($inputArr);
-            $setResult = self::setAscii($codetype, $inputArr, $ascidx, $ascmax, $asclist, $ascrlist);
-            $asctype = $setResult['asctype'];
-            $ascidx = $setResult['ascidx'];
-            $ascrlist = $setResult['ascrlist'];
 
-            $op = [];
-            $i = 0;
-            $m = 0;
-            if ($asctype == 1) {
-                --$inputlen;
-                do {
-                    if ($inputArr[$i] == $xtag) {
-                        if ($inputArr[$i + 1] == $xtag) {
-                            $op[$m] = $xtag;
-                            ++$i;
-                        } else {
-                            $op[$m] = \chr($ascrlist[$inputArr[++$i]]);
-                        }
-                    } else {
-                        $op[$m] = $inputArr[$i];
-                    }
-                    ++$m;
-                } while (++$i < $inputlen);
+        $input = (string) $input;
+
+        return substr($input, -1) === self::XTAG ? self::decodeAscii($input) : self::decodeBinary($input);
+    }
+
+    /**
+     * Converts a number from base $ibase to base 10.
+     *
+     * @param string|int             $inum
+     * @param int                    $ibase
+     * @param array<int|string, int> $ridx  Reverse alphabet (char => value)
+     *
+     * @return string|int|float
+     */
+    public static function xx2dec($inum, $ibase, $ridx)
+    {
+        $inum = (string) $inum;
+        $ibase = (int) $ibase;
+
+        if ($ibase <= self::max_safe_base) {
+            return base_convert($inum, $ibase, 10);
+        }
+
+        if ($ibase > self::base59 && $ibase < self::xpos) {
+            // base 60, 61, 62: "x", "y" and "z" are digits
+            $ridx['x'] = 59;
+            $ridx['y'] = 60;
+            $ridx['z'] = 61;
+        }
+
+        $digits = array_reverse(str_split($inum));
+        $count = \count($digits);
+        $isBase62x = ($ibase === self::xpos);
+        $onum = 0;
+        $xnum = 0;
+        for ($i = 0; $i < $count; ++$i) {
+            if ($isBase62x && isset($digits[$i + 1]) && $digits[$i + 1] === self::XTAG) {
+                $value = self::bpos + ($ridx[$digits[$i]] ?? 0);
+                ++$xnum;
+                ++$i;
             } else {
-                $tmpArr = [];
-                $bint = ['1' => 1, '2' => 2, '3' => 3];
-                do {
-                    $tmpArr = [null, null, null, null];
-                    $remaini = $inputlen - $i;
-                    $j = 0;
-                    if ($remaini > 1) {
-                        $j = 0;
-                        do {
-                            if ($inputArr[$i] == $xtag) {
-                                ++$i;
-                                $tmpArr[$j] = $bpos + $bint[$inputArr[$i]];
-                            } else {
-                                $tmpArr[$j] = $rb62x[$inputArr[$i]];
-                            }
-                            ++$i;
-                            ++$j;
-                        } while ($j < 4 && $i < $inputlen);
-
-                        $arr = self::_decodeByLength($tmpArr, $op, $m);
-                        $op = $arr[0];
-                        $m = $arr[1]; //- deprecated
-                    } else {
-                        error_log(__FILE__.': found illegal base62x input:['.$inputArr[$i].']. 1608091042.');
-                        ++$i;
-                        continue;
-                    }
-                    ++$m;
-                } while ($i < $inputlen);
+                $value = $ridx[$digits[$i]] ?? 0;
             }
-            $output = implode('', $op);
+            if ($value >= $ibase) {
+                $value = $ibase - 1;
+            }
+            $onum += $value * $ibase ** ($i - $xnum);
+        }
+
+        if (strpos((string) $onum, 'E') !== false) {
+            // lost precision due to a too large number
+            return number_format((float) $onum);
+        }
+
+        return $onum;
+    }
+
+    /**
+     * Converts a number from base 10 to base $obase.
+     *
+     * @param string|int|float  $inum
+     * @param int               $obase
+     * @param array<int,string> $idx   Alphabet (value => char)
+     *
+     * @return string
+     */
+    public static function dec2xx($inum, $obase, $idx)
+    {
+        $obase = (int) $obase;
+
+        if ($obase <= self::max_safe_base) {
+            return base_convert((string) $inum, 10, $obase);
+        }
+
+        $isBase62x = false;
+        if ($obase > self::base59 && $obase < self::xpos) {
+            $idx[59] = 'x';
+            $idx[60] = 'y';
+            $idx[61] = 'z';
+        } elseif ($obase === self::xpos) {
+            $isBase62x = true;
+        }
+        $maxPos = $isBase62x ? self::bpos : self::bpos + 1; // cover all 0-61 chars
+
+        $inum = (float) $inum;
+        $digits = [];
+        while ($inum >= $obase) {
+            $b = (int) $inum % $obase;
+            $inum = floor($inum / $obase);
+            self::appendDigit($digits, $b, $maxPos, $idx);
+        }
+        if ($inum > 0) {
+            self::appendDigit($digits, (int) $inum, $maxPos, $idx);
+        }
+
+        return implode('', array_reverse($digits));
+    }
+
+    /**
+     * Whether the "ASCII" flavor can be used for the input.
+     * NOTE: the first byte is deliberately not checked against the control chars ranges, as in the reference implementation.
+     */
+    private static function isAsciiEncodable(string $input): bool
+    {
+        if (\ord($input[0]) > self::ascmax) {
+            return false;
+        }
+
+        $length = \strlen($input);
+        for ($i = 1; $i < $length; ++$i) {
+            $byte = \ord($input[$i]);
+            if ($byte > self::ascmax
+                || ($byte > 16 && $byte < 21) // DC1-4
+                || ($byte > 27 && $byte < 32)) { // FS, GS, RS, US
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static function encodeAscii(string $input): string
+    {
+        $escapes = self::asciiEscapes();
+        $output = '';
+        $length = \strlen($input);
+        for ($i = 0; $i < $length; ++$i) {
+            $byte = \ord($input[$i]);
+            if (isset($escapes[$byte])) {
+                $output .= self::XTAG.$escapes[$byte];
+            } elseif ($input[$i] === self::XTAG) {
+                $output .= self::XTAG.self::XTAG;
+            } else {
+                $output .= $input[$i];
+            }
+        }
+
+        // the "ASCII" flavor has a tag "x" appended
+        return $output.self::XTAG;
+    }
+
+    /**
+     * @throws DecodeException
+     */
+    private static function decodeAscii(string $input): string
+    {
+        $unescapes = array_flip(self::asciiEscapes());
+        $output = '';
+        $length = \strlen($input) - 1; // strip the trailing tag
+        for ($i = 0; $i < $length; ++$i) {
+            if ($input[$i] !== self::XTAG) {
+                $output .= $input[$i];
+                continue;
+            }
+
+            if (++$i >= $length) {
+                throw new DecodeException();
+            }
+            if ($input[$i] === self::XTAG) {
+                $output .= self::XTAG;
+            } elseif (isset($unescapes[$input[$i]])) {
+                $output .= \chr($unescapes[$input[$i]]);
+            } else {
+                throw new DecodeException();
+            }
         }
 
         return $output;
     }
 
-    // xx2dec
-    public static function xx2dec($inum, $ibase, $ridx)
+    public static function encodeBinary(string $input): string
     {
-        $onum = 0;
-        $obase = 10;
-        $xtag = self::XTAG;
-        $bpos = self::bpos;
-        $safebase = self::max_safe_base;
-        $base59 = self::base59;
-        $xpos = self::xpos;
-        if ($ibase <= $safebase) {
-            $onum = base_convert($inum, $ibase, $obase);
-        } else {
-            if ($ibase > $base59 && $ibase < $xpos) {
-                // base 60, 61, 62 or sth, reset ridx table
-                //$ridx = $self->rb62xyz;
-                $ridx_in = [];
-                foreach ($ridx as $rk => $rv) {
-                    $ridx_in[$rk] = $rv;
-                }
-                $ridx_in['x'] = 59;
-                $ridx_in['y'] = 60;
-                $ridx_in['z'] = 61;
-                $ridx = $ridx_in;
-            }
-            $iArr = mb_str_split($inum);
-            $iArr = array_reverse($iArr);
-            $arrLen = \count($iArr);
-            $xnum = 0;
-            $isBase62x = ($ibase == $xpos);
-            for ($i = 0; $i < $arrLen; ++$i) {
-                if ($isBase62x && $iArr[$i + 1] == $xtag) {
-                    $tmpi = $bpos + $ridx[$iArr[$i]];
-                    ++$xnum;
-                    ++$i;
-                } else {
-                    $tmpi = $ridx[$iArr[$i]];
-                }
-                if ($tmpi >= $ibase) {
-                    error_log(__FILE__.": xxdec found out of radix:$tmpi for base:$ibase.\n");
-                    $tmpi = $ibase - 1;
-                }
-                $onum = $onum + $tmpi * $ibase ** ($i - $xnum);
-                //error_log("\t".__FILE__.": xx2dec ibase:$ibase i:$i c:".$iArr[$i]." tmpi:$tmpi onum:$onum xnum:$xnum");
-            }
-            if (mb_strpos($onum, 'E') !== false) {
-                error_log(__FILE__.": Base62x::xx2dec: lost precision due to too large number:[$onum]. consider using bc math. 1610072145.");
-                $onum = number_format($onum);
-            }
-        }
-        //error_log(__FILE__.": xx2dec: in:$inum ibase:$ibase outindec:".$onum);
-        return $onum;
-    }
-
-    // dec2xx
-    public static function dec2xx($inum, $obase, $idx)
-    {
-        $onum = 0;
-        $ibase = 10;
-        $xtag = self::XTAG;
-        $bpos = self::bpos;
-        $safebase = self::max_safe_base;
-        $base59 = self::base59;
-        $xpos = self::xpos;
-        if ($obase <= $safebase) {
-            $onum = base_convert($inum, $ibase, $obase);
-        } else {
-            $isBase62x = false;
-            if ($obase > $base59 && $obase < $xpos) {
-                //$idx = self::b62xyz;
-                $idx_in = [];
-                foreach ($idx as $ik => $iv) {
-                    $idx_in[$ik] = $iv;
-                }
-                $idx_in[59] = 'x';
-                $idx_in[60] = 'y';
-                $idx_in[61] = 'z';
-                $idx = $idx_in;
-            } elseif ($obase == $xpos) {
-                $isBase62x = true;
-            }
-            $maxPos = $bpos;
-            if (!$isBase62x) {
-                $maxPos = $bpos + 1;
-            } // cover all 0-61 chars
-            $i = 0;
-            $b = 0;
-            $oArr = [];
-            while ($inum >= $obase) {
-                $b = $inum % $obase;
-                $inum = floor($inum / $obase);
-                if ($b <= $maxPos) {
-                    $oArr[$i++] = $idx[$b];
-                } else {
-                    $oArr[$i++] = $idx[$b - $bpos];
-                    $oArr[$i++] = $xtag;
-                }
-            }
-            $b = $inum;
-            if ($b > 0) {
-                if ($b <= $maxPos) {
-                    $oArr[$i++] = $idx[$b];
-                } else {
-                    $oArr[$i++] = $idx[$b - $bpos];
-                    $oArr[$i++] = $xtag;
-                }
-            }
-            $oArr = array_reverse($oArr);
-            //print_r($oArr);
-            $onum = implode('', $oArr);
-        }
-        //error_log(__FILE__.": dec2xx: inindec:$inum obase:$obase out:".($onum));
-        return $onum;
-    }
-
-    // inner faciliates
-
-    // fill reverse b62x
-    private static function fillRb62x($b62x, $bpos, $xpos)
-    {
-        $rb62x = [];
-        for ($i = 0; $i <= $xpos; ++$i) {
-            if ($i > $bpos && $i < $xpos) {
-                // omit x1, x2, x3
+        $output = '';
+        $length = \strlen($input);
+        for ($i = 0; $i < $length; $i += 3) {
+            $b0 = \ord($input[$i]);
+            $remaining = $length - $i;
+            if ($remaining > 2) {
+                $b1 = \ord($input[$i + 1]);
+                $b2 = \ord($input[$i + 2]);
+                $symbols = [$b0 >> 2, (($b0 & 0x03) << 4) | ($b1 >> 4), (($b1 & 0x0F) << 2) | ($b2 >> 6), $b2 & 0x3F];
+            } elseif ($remaining === 2) {
+                $b1 = \ord($input[$i + 1]);
+                $symbols = [$b0 >> 2, (($b0 & 0x03) << 4) | ($b1 >> 4), $b1 & 0x0F];
             } else {
-                $rb62x[$b62x[$i]] = $i;
+                $symbols = [$b0 >> 2, $b0 & 0x03];
+            }
+
+            foreach ($symbols as $symbol) {
+                $output .= $symbol > self::bpos ? self::XTAG.self::b62x[$symbol] : self::b62x[$symbol];
             }
         }
 
-        return $rb62x;
+        return $output;
     }
 
-    // set ascii type
-    private static function setAscii($codetype, $inputArr, $ascidx, $ascmax, $asclist, $ascrlist)
+    /**
+     * @throws DecodeException
+     */
+    public static function decodeBinary(string $input): string
     {
-        $ret = [];
+        $reverse = self::reverseAlphabet();
+        $output = '';
+        $length = \strlen($input);
+        $i = 0;
+        while ($i < $length) {
+            if ($length - $i < 2) {
+                // a single trailing character cannot encode a full byte: the input is malformed
+                throw new DecodeException();
+            }
 
-        $asctype = 0;
-        $xtag = self::XTAG;
-        $inputlen = \count($inputArr);
-        if ($codetype == 0 && \ord($inputArr[0]) <= $ascmax) {
-            $asctype = 1;
-            for ($i = 1; $i < $inputlen; ++$i) {
-                $tmpi = \ord($inputArr[$i]);
-                if ($tmpi > $ascmax
-                    || ($tmpi > 16 && $tmpi < 21) // DC1-4
-                    || ($tmpi > 27 && $tmpi < 32)) { // FC, GS, RS, US
-                    $asctype = 0;
-                    break;
+            // read up to 4 symbols of 6 bits
+            $symbols = [];
+            while (\count($symbols) < 4 && $i < $length) {
+                $char = $input[$i++];
+                if ($char === self::XTAG) {
+                    $next = $input[$i++] ?? '';
+                    if ($next !== '1' && $next !== '2' && $next !== '3') {
+                        throw new DecodeException();
+                    }
+                    $symbols[] = self::bpos + (int) $next;
+                } elseif (isset($reverse[$char])) {
+                    $symbols[] = $reverse[$char];
+                } else {
+                    throw new DecodeException();
                 }
             }
-        } elseif ($codetype == 1 && $inputArr[$inputlen - 1] == $xtag) {
-            $asctype = 1;
-        }
-        $ret['asctype'] = $asctype;
 
-        if ($asctype == 1) {
-            for ($i = 0; $i <= $ascmax; ++$i) {
-                $ascidx[$i] = -1;
-            }
-            $idxi = 0;
-            $bgnArr = [0, 21, 32, 58, 91, 123];
-            $endArr = [17, 28, 48, 65, 97, $ascmax + 1];
-            foreach ($bgnArr as $k => $v) {
-                for ($i = $v; $i < $endArr[$k]; ++$i) {
-                    $ascidx[$i] = $asclist[$idxi];
-                    $ascrlist[$asclist[$idxi]] = $i;
-                    ++$idxi;
-                }
-            }
+            $output .= self::symbolsToBytes($symbols);
         }
 
-        $ret['ascidx'] = $ascidx;
-        $ret['ascrlist'] = $ascrlist;
-
-        return $ret;
+        return $output;
     }
 
-    //- decode with x1, x2, x3
-    //- Mon Nov 28 17:47:45 CST 2016
-    private static function _decodeByLength($tmpArr, $op, $m)
+    /**
+     * @param list<int> $symbols 1 to 4 symbols of 6 bits
+     */
+    private static function symbolsToBytes(array $symbols): string
     {
-        $rtn = $op;
-        $c0 = 0;
-        $c1 = 0;
-        $c2 = 0;
-        if ($tmpArr[3] !== null) {
-            $c0 = $tmpArr[0] << 2 | $tmpArr[1] >> 4;
-            $c1 = (($tmpArr[1] << 4) & 0xF0) | ($tmpArr[2] >> 2);
-            $c2 = (($tmpArr[2] << 6) & 0xFF) | $tmpArr[3];
-            $op[$m] = \chr($c0);
-            $op[++$m] = \chr($c1);
-            $op[++$m] = \chr($c2);
-        } elseif ($tmpArr[2] !== null) {
-            $c0 = $tmpArr[0] << 2 | $tmpArr[1] >> 4;
-            $c1 = (($tmpArr[1] << 4) & 0xF0) | $tmpArr[2];
-            $op[$m] = \chr($c0);
-            $op[++$m] = \chr($c1);
-        } elseif ($tmpArr[1] !== null) {
-            $c0 = $tmpArr[0] << 2 | $tmpArr[1];
-            $op[$m] = \chr($c0);
+        switch (\count($symbols)) {
+            case 4:
+                return \chr(($symbols[0] << 2 | $symbols[1] >> 4) & 0xFF)
+                    .\chr((($symbols[1] << 4) & 0xF0) | ($symbols[2] >> 2))
+                    .\chr((($symbols[2] << 6) & 0xFF) | $symbols[3]);
+            case 3:
+                return \chr(($symbols[0] << 2 | $symbols[1] >> 4) & 0xFF)
+                    .\chr(((($symbols[1] << 4) & 0xF0) | $symbols[2]) & 0xFF);
+            case 2:
+                return \chr(($symbols[0] << 2 | $symbols[1]) & 0xFF);
+            default:
+                return \chr($symbols[0]);
+        }
+    }
+
+    /**
+     * The escaped ASCII bytes of the "ASCII" flavor, mapped to their escape char.
+     *
+     * @return array<int, string>
+     */
+    private static function asciiEscapes(): array
+    {
+        $escapes = [];
+        $index = 0;
+        foreach (self::ASCII_ESCAPED_RANGES as [$start, $end]) {
+            for ($byte = $start; $byte < $end; ++$byte) {
+                $escapes[$byte] = self::asclist[$index++];
+            }
+        }
+
+        return $escapes;
+    }
+
+    /**
+     * The reverse Base62x alphabet (char => value), omitting the "x1", "x2", "x3" escape values.
+     *
+     * @return array<int|string, int>
+     */
+    private static function reverseAlphabet(): array
+    {
+        $reverse = [];
+        for ($i = 0; $i <= self::xpos; ++$i) {
+            if ($i <= self::bpos || $i === self::xpos) {
+                $reverse[self::b62x[$i]] = $i;
+            }
+        }
+
+        return $reverse;
+    }
+
+    /**
+     * @param list<string>       $digits
+     * @param array<int, string> $idx
+     */
+    private static function appendDigit(array &$digits, int $value, int $maxPos, array $idx): void
+    {
+        if ($value <= $maxPos) {
+            $digits[] = $idx[$value];
         } else {
-            $c0 = $tmpArr[0];
-            $op[$m] = \chr($c0);
+            $digits[] = $idx[$value - self::bpos];
+            $digits[] = self::XTAG;
         }
-
-        return [$rtn = $op, $m];
     }
 }

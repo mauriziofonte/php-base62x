@@ -1,18 +1,33 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Mfonte\Base62x\Compression\Huffman\Binary;
 
 /**
- *	a mechanism for writing a stream if bits into a string, which can then be easily transmistted or stored.
+ * A mechanism for writing a stream of bits into a string, which can then be easily transmitted or stored.
+ *
+ * @internal
  */
 class BitStreamWriter
 {
+    /**
+     * @var string
+     */
     private $data = '';
-    private $workingByte = null;
+
+    /**
+     * @var BitArray
+     */
+    private $workingByte;
+
+    /**
+     * @var int
+     */
     private $cursor = 0;
 
     /**
-     *	initialize be creating our working byte / buffer.
+     * Initializes the writer, by creating our working byte / buffer.
      */
     public function __construct()
     {
@@ -20,21 +35,22 @@ class BitStreamWriter
     }
 
     /**
-     * 	convert a string of zeroes and ones into a binary representation.
+     * Converts a string of zeroes and ones into a binary representation.
      */
-    public function writeString($bitStr)
+    public function writeString(string $bitStr): void
     {
-        for ($i = 0; $i < mb_strlen($bitStr); ++$i) {
-            $this->writeBit((bool) $bitStr[$i]);
+        $length = \strlen($bitStr);
+        for ($i = 0; $i < $length; ++$i) {
+            $this->writeBit($bitStr[$i] === '1');
         }
     }
 
     /**
-     * 	write a bit. 1 if $bit is true.
+     * Writes a bit: 1 if $bit is true.
      */
-    public function writeBit($bit)
+    public function writeBit(bool $bit): void
     {
-        $this->workingByte[$this->cursor] = $bit;
+        $this->workingByte[$this->cursor] = $bit ? 1 : 0;
         ++$this->cursor;
         if ($this->cursor > 7) {
             $this->data .= $this->workingByte->getData();
@@ -44,10 +60,9 @@ class BitStreamWriter
     }
 
     /**
-     * 	when the data is accessed, make sure to include any data
-     * 	byte in $this->workingByte.
+     * When the data is accessed, make sure to include any data byte in $this->workingByte.
      */
-    public function getData()
+    public function getData(): string
     {
         $data = $this->data;
         if ($this->cursor > 0) {

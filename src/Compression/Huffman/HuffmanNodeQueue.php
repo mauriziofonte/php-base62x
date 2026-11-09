@@ -1,59 +1,64 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Mfonte\Base62x\Compression\Huffman;
 
 use Mfonte\Base62x\Exception\CompressionException;
 
 /**
- *	A queue of Huffman Nodes that need to be incorporated into a tree.
+ * A queue of Huffman Nodes that need to be incorporated into a tree.
+ *
+ * @internal
  */
 class HuffmanNodeQueue
 {
+    /**
+     * @var list<HuffmanNode>
+     */
     private $nodes = [];
 
     /**
-     * put the new node into the queue, keeping it in order by weight
-     * NOTE: schliemel going on here!
+     * Puts the new node into the queue, keeping it in order by weight.
      */
-    public function addNode(HuffmanNode $node)
+    public function addNode(HuffmanNode $node): void
     {
-        if (\count($this->nodes) == 0) {
-            $this->nodes = [$node];
-
-            return;
-        }
-
         $index = 0;
-        while (isset($this->nodes[$index]) && $this->nodes[$index]->getWeight() < $node->getWeight()) {
+        $count = \count($this->nodes);
+        while ($index < $count && $this->nodes[$index]->getWeight() < $node->getWeight()) {
             ++$index;
         }
         array_splice($this->nodes, $index, 0, [$node]);
     }
 
     /**
-     * 	get the two nodes with the lowest weights from the front of the queue.
+     * Gets the two nodes with the lowest weights from the front of the queue.
+     *
+     * @return array{0: HuffmanNode, 1: HuffmanNode}|false
      */
     public function popTwoNodes()
     {
-        if (\count($this->nodes) > 1) {
-            $first = array_shift($this->nodes);
-            $second = array_shift($this->nodes);
-
-            return [$first, $second];
-        } else {
+        if (\count($this->nodes) < 2) {
             return false;
         }
+
+        [$first, $second] = $this->nodes;
+        $this->nodes = \array_slice($this->nodes, 2);
+
+        return [$first, $second];
     }
 
     /**
-     * 	once there's only one node left, extract it.
+     * Once there's only one node left, extracts it.
+     *
+     * @throws CompressionException
      */
-    public function getOnlyNode()
+    public function getOnlyNode(): HuffmanNode
     {
-        if (\count($this->nodes) == 1) {
-            return $this->nodes[0];
-        } else {
+        if (\count($this->nodes) !== 1) {
             throw new CompressionException('huffman', 'Wrong number of nodes. Only call getOnlyNode when exactly one node exists.');
         }
+
+        return $this->nodes[0];
     }
 }

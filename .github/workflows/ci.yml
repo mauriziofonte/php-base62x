@@ -1,0 +1,140 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  tests:
+    name: PHP ${{ matrix.php }}${{ matrix.dependencies == 'lowest' && ' (lowest deps)' || '' }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['7.2', '7.3', '7.4', '8.0', '8.1', '8.2', '8.3', '8.4', '8.5']
+        dependencies: [highest]
+        include:
+          - php: '7.2'
+            dependencies: lowest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: openssl, zlib, sodium, bz2
+          coverage: none
+          tools: composer:v2
+
+      - name: Validate composer.json
+        run: composer validate --strict
+
+      # PHP 7.2 can only install Laravel 7, whose env() helper needs phpdotenv 4
+      - name: Pin phpdotenv for Laravel 7
+        if: matrix.php == '7.2'
+        run: composer require --dev --no-update --no-interaction "vlucas/phpdotenv:^4.1"
+
+      - uses: ramsey/composer-install@v3
+        with:
+          dependency-versions: ${{ matrix.dependencies }}
+
+      - name: Run test suite
+        run: vendor/bin/phpunit
+
+  extensions:
+    name: Optional compression extensions (zstd, brotli)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: openssl, zlib, sodium, bz2, zstd, brotli
+          coverage: none
+          tools: composer:v2
+
+      - uses: ramsey/composer-install@v3
+
+      - name: Check that the extensions are loaded
+        run: php -r 'foreach (["bz2", "zstd", "brotli", "sodium"] as $e) { if (!extension_loaded($e)) { fwrite(STDERR, "missing ext-$e\n"); exit(1); } }'
+
+      - name: Run test suite
+        run: vendor/bin/phpunit
+
+  quality:
+    name: Static analysis & coding style
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: openssl, zlib, sodium, bz2, zstd, brotli
+          coverage: none
+          tools: composer:v2
+
+      - uses: ramsey/composer-install@v3
+
+      - name: PHPStan
+        run: composer analyse -- --no-progress --error-format=github
+
+      - name: PHP CS Fixer
+        run: composer cs
+        env:
+          PHP_CS_FIXER_IGNORE_ENV: 1
+
+  coverage:
+    name: Code coverage
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: openssl, zlib, sodium, bz2, zstd, brotli
+          coverage: pcov
+          tools: composer:v2
+
+      - uses: ramsey/composer-install@v3
+
+      - name: Run test suite with coverage
+        run: vendor/bin/phpunit --coverage-text --coverage-clover=clover.xml
+
+  mutation:
+    name: Mutation testing
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: openssl, zlib, sodium, bz2, zstd, brotli
+          coverage: pcov
+          tools: composer:v2
+
+      - uses: ramsey/composer-install@v3
+
+      - name: Install Infection
+        run: |
+          composer config --no-plugins allow-plugins.infection/extension-installer true
+          composer require --dev --no-interaction --no-progress --with-all-dependencies infection/infection
+
+      # phpunit.xml.dist uses the PHPUnit 8.5 format (PHP 7.2 support): Infection needs the PHPUnit 9 one
+      - name: Migrate the PHPUnit configuration
+        run: vendor/bin/phpunit --migrate-configuration
+
+      - name: Infection
+        run: vendor/bin/infection --threads=max --no-progress --show-mutations=20 --logger-github

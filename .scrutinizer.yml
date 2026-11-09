@@ -1,0 +1,23 @@
+# Scrutinizer only runs its code analysis: tests, coverage, PHPStan and coding style run on GitHub Actions.
+build:
+  environment:
+    php:
+      version: 8.1
+  nodes:
+    analysis:
+      dependencies:
+        override:
+          - composer install --no-interaction --prefer-dist --no-progress
+      tests:
+        override:
+          - php-scrutinizer-run
+
+filter:
+  excluded_paths:
+    - tests/*
+    - config/*
+  dependency_paths:
+    - vendor/
+
+checks:
+  php: true

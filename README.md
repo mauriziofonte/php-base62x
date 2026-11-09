@@ -1,265 +1,299 @@
-# PHP Base62x Library
-
-This library can be used to encode strings in **Base62x** format.
-
-The reference implementation of _Base62x_ has been taken by this repository: [https://github.com/wadelau/Base62x](https://github.com/wadelau/Base62x)
-
-Stating the original author repository, **Base62x is an alternative approach to Base 64 without symbols in output.**
-
-_Base62x_ is an **non-symbolic Base64 encoding scheme**. It can be used safely in computer file systems, programming languages for data exchange, internet communication systems, etc, and it is an ideal substitute and successor of many variants of Base64 encoding scheme.
-
-This repository is a wrapper around **wadelau/Base62x** repository, and is specifically crafted for PHP, with composer support.
-
-It can be integrated into any framework, like Laravel, to enable _Base62x_ support out of the box.
+# PHP Base62x
 
 [![Latest Stable Version](https://poser.pugx.org/mfonte/base62x/v/stable)](https://packagist.org/packages/mfonte/base62x)
 [![Total Downloads](https://poser.pugx.org/mfonte/base62x/downloads)](https://packagist.org/packages/mfonte/base62x)
-[![Build Status](https://scrutinizer-ci.com/g/mauriziofonte/php-base62x/badges/build.png?b=master)](https://scrutinizer-ci.com/g/mauriziofonte/php-base62x/)
-[![Scrutinizer Code Quality](https://scrutinizer-ci.com/g/mauriziofonte/php-base62x/badges/quality-score.png?b=master)](https://scrutinizer-ci.com/g/mauriziofonte/php-base62x/)
+[![CI](https://github.com/mauriziofonte/php-base62x/actions/workflows/ci.yml/badge.svg)](https://github.com/mauriziofonte/php-base62x/actions/workflows/ci.yml)
+[![PHP Version](https://img.shields.io/packagist/dependency-v/mfonte/base62x/php)](https://packagist.org/packages/mfonte/base62x)
+[![License](https://img.shields.io/packagist/l/mfonte/base62x)](LICENSE.txt)
+
+A PHP implementation of **Base62x**, a non-symbolic alternative to Base64: the output only contains `[0-9A-Za-z]`,
+so it can be used safely in URLs, file names, HTML attributes, JavaScript strings and any other place where `+`,
+`/` and `=` cause trouble.
+
+On top of the encoding, the library can **compress** (Gzip, Huffman, Bzip2, Zstandard, Brotli) and **encrypt** the
+payload (authenticated XChaCha20-Poly1305 via libsodium, or any OpenSSL cipher), with a fluent API. It also offers
+streaming for big files and a first-class Laravel integration.
+
+The encoding follows the reference implementation by Wade Lau: [wadelau/Base62x](https://github.com/wadelau/Base62x)
+([paper](https://ieeexplore.ieee.org/document/6020065)).
 
 ## Installation
 
-Simple enough.
+```bash
+composer require mfonte/base62x
+```
 
-`composer require mfonte/base62x`
+Requirements:
 
-Required environment:
+- PHP **7.2** or newer (tested up to 8.5)
+- optional extensions, only for the features that need them:
+  `ext-sodium` (authenticated encryption), `ext-openssl` (OpenSSL ciphers), `ext-zlib` (Gzip), `ext-bz2` (Bzip2),
+  `ext-zstd` (Zstandard), `ext-brotli` (Brotli)
 
-1. PHP **>= 7.2**
-2. `gzip` module, for gzip compression support
-3. `openssl` module, for encryption support
+The output is byte-for-byte compatible with the reference implementations of Base62x in PHP, Python and JavaScript
+(see `tests/Unit/fixtures/interop-vectors.json`).
 
-### Use cases
-
-Base64 is notoriously bad to be used in _GET_ strings. With this library, you can safely encode (and compress) and pass your data via **GET parameters**.
-
-Another use case is when you have to **communicate binary data** from one server to another.
-
-Many Apache modules (like Mod Security) will do some strange things, already seen in the wild, while passing raw binary data or complex jugglary in server2server communication.
-
-Sure, you can use native `base64_encode()` and `base64_decode()` on both ends, but using this library not only you're encoding data, **you can also compress and encrypt it on the go!**.
-
-### Basic Usage
-
-Usage is simple enough with a nice, expressive API:
+## Usage
 
 ```php
-<?php
 use Mfonte\Base62x\Base62x;
 
-$string = 'this is some string that needs to be encoded';
-$encoded = Base62x::encode($string)->get();
+$encoded = Base62x::encode('this is some string that needs to be encoded')->get();
 $decoded = Base62x::decode($encoded)->get();
-
 ```
 
-### Real use case scenario
-
-A useful example of **real use case scenario**, that I've used on some projects, is passing json context data from an HTML page to an Ajax worker.
+The encoder is **binary safe**: strings with any byte (binary files, UTF-8 text...) survive the round-trip unchanged.
 
 ```php
-<?php
+$image = file_get_contents('a_nice_image.jpg');
+$encoded = Base62x::encode($image)->get();
 
-// create an ajaxToken to be included in the <head> of the document
-$encryptedAjaxToken = Base62x::encode('secure_ajax_token')->encrypt(config('app.key'))->compress()->get();
+// ... on another machine
+file_put_contents('a_nice_image_clone.jpg', Base62x::decode($encoded)->get());
+```
 
-// create a context of data to be passed to the Ajax worker
-$contextData = ['route' => 'homepage', 'pagination' => ['currPage' => 1, 'maxPages' => 2]];
-$encryptedContextData = Base62x::encode($contextData)->encrypt(config('app.key'))->compress()->get();
+### Supported payloads
 
-$html = <<<EOT
-<head>
-<meta charset="utf-8">
-...
-...
-<script type="text/javascript">
-const ajaxConfig = {
-    url: 'https://www.example.com/ajaxRequest',
-    token: '$encryptedAjaxToken',
-    context: '$encryptedContextData'
-};
+| Payload                    | Behavior                                                       |
+|----------------------------|----------------------------------------------------------------|
+| `string`                   | Encoded as-is (binary safe)                                    |
+| `int`, `float`, `bool`     | Cast to `string`                                               |
+| `array`                    | Serialized on encode, and returned as an `array` on decode    |
+| `null`, `''`, `[]`         | Rejected with an `InvalidParam` exception                      |
+| objects, resources         | Rejected with an `InvalidParam` exception                      |
 
-function ajaxRequest() {
-    $.post(ajaxConfig.url, Object.assign({
-        method: "whatever",
-    }, ajaxConfig)).done(function(response) {
-        // logic
-    });
+> Objects nested inside arrays are **never** instantiated on decode (they come back as `__PHP_Incomplete_Class`),
+> to protect you from PHP Object Injection when decoding untrusted input.
+
+### Getting the result
+
+| Method                     | Returns                                                                        |
+|----------------------------|--------------------------------------------------------------------------------|
+| `get()`                    | the encoded string, or the decoded payload (arrays are restored automatically) |
+| `getString()`              | the encoded string, or the decoded payload as a raw string, never unserialized |
+| `getArray()`               | the decoded payload as an array, or a `DecodeException` if it is not an array  |
+| `Base62x::isValid($input)` | whether `$input` is a well-formed Base62x payload (no exception thrown)        |
+
+```php
+$encoded = Base62x::encode(['foo' => 'bar'])->get();
+
+Base62x::decode($encoded)->getArray();  // ['foo' => 'bar']
+Base62x::decode($encoded)->getString(); // 'a:1:{s:3:"foo";s:3:"bar";}'
+
+if (!Base62x::isValid($_GET['token'] ?? null)) {
+    // reject the request
 }
+```
+
+`isValid()` checks the alphabet, the structure and the compression, but does not decrypt: use
+`decode()->decrypt()` to verify the authenticity of an encrypted payload.
+
+### Compression
+
+```php
+$payload = ['foo' => 'bar', 'barfoo' => [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]];
+
+$gzip    = Base62x::encode($payload)->compress()->get();                   // same as compress('gzip', 'gzip')
+$zlib    = Base62x::encode($payload)->compress('gzip', 'zlib')->get();
+$deflate = Base62x::encode($payload)->compress('gzip', 'deflate')->get();
+$huffman = Base62x::encode($payload)->compress('huffman')->get();
+$bzip2   = Base62x::encode($payload)->compress('bzip2')->get();    // needs ext-bz2
+$zstd    = Base62x::encode($payload)->compress('zstd')->get();     // needs ext-zstd
+$brotli  = Base62x::encode($payload)->compress('brotli')->get();   // needs ext-brotli
+
+// no need to tell decode() which compression was used: it is auto-detected
+$decoded = Base62x::decode($gzip)->get(); // the original array
+```
+
+Available methods:
+
+| Algorithm   | Encodings                          | Requires     |
+|-------------|------------------------------------|--------------|
+| `gzip`      | `gzip` (default), `zlib`, `deflate`| `ext-zlib`   |
+| `huffman`   | -                                  | nothing (pure PHP) |
+| `bzip2`     | -                                  | `ext-bz2`    |
+| `zstd`      | -                                  | `ext-zstd`   |
+| `brotli`    | -                                  | `ext-brotli` |
+
+`compress()` throws a `CompressionException` right away if the needed extension is missing.
+
+The compression algorithm is stored in a small header at the beginning of the encoded payload, so the receiving side
+does not need to know it. Compression only pays off with reasonably large and redundant payloads.
+
+### Authenticated encryption (recommended)
+
+```php
+$key = config('app.key'); // a long, random key
+
+$encrypted = Base62x::encode($payload)->encrypt($key, Base62x::CIPHER_XCHACHA20_POLY1305)->compress()->get();
+
+// the cipher is detected automatically on decrypt
+$decrypted = Base62x::decode($encrypted)->decrypt($key)->get();
+```
+
+`Base62x::CIPHER_XCHACHA20_POLY1305` uses XChaCha20-Poly1305 (libsodium) with a fresh random salt and nonce for every
+payload: a wrong key or a single tampered character always makes `decrypt()` throw a `CryptException`, and decoding an
+encrypted payload without calling `decrypt()` throws too.
+
+The key is derived with keyed BLAKE2b, which is fast and meant for high-entropy keys. If the key is a **human password**,
+use `Base62x::CIPHER_XCHACHA20_POLY1305_ARGON2ID` instead: the key is then derived with Argon2id, which is slow on purpose
+(about 64 MiB of memory per call) to resist brute force.
+
+### OpenSSL encryption
+
+```php
+$key = 'a-long-random-secret-key';
+
+$encrypted = Base62x::encode('my_payload')->encrypt($key)->get();
+$encryptedAndCompressed = Base62x::encode('my_payload')->encrypt($key)->compress()->get();
+
+// to decrypt, you must pass the same key (and the same cipher method, if not the default)
+$decrypted = Base62x::decode($encrypted)->decrypt($key)->get();
+
+// any cipher method supported by your OpenSSL installation can be used
+$encrypted = Base62x::encode('my_payload')->encrypt($key, 'aes-256-cbc')->get();
+$decrypted = Base62x::decode($encrypted)->decrypt($key, 'aes-256-cbc')->get();
+```
+
+The default cipher method is `aes-128-ctr`. Methods without an IV (ECB), AEAD methods (GCM, CCM, OCB, Poly1305, SIV),
+key-wrap methods and TLS-only `*-hmac-*` methods are rejected with a `CryptException`.
+
+The payload is always encrypted first and compressed afterwards, whatever the order of the calls in the chain.
+
+> **Security note**: OpenSSL ciphers are kept for backward compatibility. They do not authenticate the cipher text, and
+> do not use a password-based key derivation function: prefer authenticated encryption for new code, and read
+> [SECURITY.md](SECURITY.md).
+
+### Streams
+
+Big files can be encoded and decoded chunk by chunk, with constant memory usage:
+
+```php
+$in = fopen('backup.tar', 'rb');
+$out = fopen('backup.tar.b62x', 'wb');
+Base62x::encodeStream($in, $out);
+
+$in = fopen('backup.tar.b62x', 'rb');
+$out = fopen('backup-restored.tar', 'wb');
+Base62x::decodeStream($in, $out);
+```
+
+Streams always use the "binary" flavor of Base62x: the output of `encodeStream()` can also be decoded with `decode()`,
+but strings produced by `encode()` for ASCII payloads (ending with `x`) can only be decoded with `decode()`.
+Compression and encryption are not available for streams.
+
+## Laravel
+
+The service provider and the `Base62x` facade alias are auto-discovered. Optionally publish the configuration:
+
+```bash
+php artisan vendor:publish --tag=base62x-config
+```
+
+| Key                   | Env                   | Default                         |
+|-----------------------|-----------------------|---------------------------------|
+| `base62x.key`         | `BASE62X_KEY`         | `APP_KEY`                       |
+| `base62x.cipher`      | `BASE62X_CIPHER`      | `xchacha20-poly1305`            |
+| `base62x.compression` | `BASE62X_COMPRESSION` | `gzip` (empty to disable)       |
+
+```php
+use Mfonte\Base62x\Laravel\Facades\Base62x;
+
+$token = Base62x::encrypt(['user' => 42]);   // compress + encrypt with the configured key, cipher and compression
+$data  = Base62x::decrypt($token);           // ['user' => 42]
+
+$packed = Base62x::pack($bigArray);          // compress only
+$data   = Base62x::unpack($packed);
+
+Base62x::encode('foo')->get();               // the fluent API is available too
+```
+
+Eloquent cast:
+
+```php
+use Mfonte\Base62x\Laravel\Casts\Base62xCast;
+
+protected $casts = [
+    'token'   => Base62xCast::class,               // plain Base62x
+    'context' => Base62xCast::class.':compressed', // + configured compression
+    'secret'  => Base62xCast::class.':encrypted',  // + configured compression and encryption
+];
+```
+
+Validation:
+
+```php
+use Mfonte\Base62x\Laravel\Rules\Base62xRule;
+
+$request->validate(['token' => ['required', new Base62xRule()]]);
+$request->validate(['token' => 'required|base62x']);
+```
+
+### Real use case: passing context data to an Ajax endpoint
+
+```php
+// render the page
+$context = ['route' => 'homepage', 'pagination' => ['currPage' => 1, 'maxPages' => 2]];
+$encryptedContext = Base62x::encode($context)
+    ->encrypt(config('app.key'), Base62x::CIPHER_XCHACHA20_POLY1305)
+    ->compress()
+    ->get();
+
+echo <<<HTML
+<script>
+const ajaxConfig = { url: 'https://www.example.com/ajaxRequest', context: '{$encryptedContext}' };
 </script>
-</head>
-EOT;
+HTML;
 ```
 
-The data lifecycle from the frontend to the Ajax backend **is fully encrypted, and doesn't break HTML apart**, as Base62x strings are based on an alphabet that is compatible with embedding them in plain JS strings like I've shown in the provided example.
-
-In the Ajax backend **you can validate the token**, collect the context data, and reply only if the setup is correct:
-
 ```php
-<?php
+// in the Ajax endpoint
+use Mfonte\Base62x\Base62x;
+use Mfonte\Base62x\Exception\Base62xException;
 
 try {
-    $ajaxToken = (array_key_exists('token', $_POST)) ? $_POST['token'] : '';
-    $context = (array_key_exists('context', $_POST)) ? $_POST['context'] : '';
-    $decodedAjaxToken = Base62x::decode($ajaxToken)->decrypt(config('app.key'))->get();
-    $decodedContext = Base62x::decode($context)->decrypt(config('app.key'))->get();
-
-    if($ajaxToken === 'secure_ajax_token' && is_array($context)) {
-        // checks are OK, proceed with your logic
-    }
-
-    // fallback: handle not authorized
-    header("HTTP/1.1 401 Unauthorized");
-    echo json_encode(['status' => false, 'error' => 401]);
+    $context = Base62x::decode($_POST['context'] ?? '')->decrypt(config('app.key'))->getArray();
+} catch (Base62xException $e) {
+    $context = null;
 }
+
+if ($context === null) {
+    http_response_code(400);
+    exit;
+}
+
+// proceed with your logic
 ```
 
-### The library supports binary streams
+### Error handling
 
-It means that you can encode binary data, for example raw JPEGs or raw audio files.
+Every exception thrown by the library implements `Mfonte\Base62x\Exception\Base62xException`:
 
-```php
-<?php
-use Mfonte\Base62x\Base62x;
-use GuzzleHttp\Client;
+| Exception              | Thrown when                                                         |
+|------------------------|---------------------------------------------------------------------|
+| `InvalidParam`         | an invalid payload, mode, stream, compression algorithm or encoding is given |
+| `EncodeException`      | the encoding fails                                                  |
+| `DecodeException`      | the input is not a valid Base62x string, or its header is corrupted |
+| `CompressionException` | the compression or decompression fails                              |
+| `CryptException`       | the key or cipher method is invalid, encryption/decryption fails, or an authenticated payload was tampered with |
 
-// on one machine
-$payload = file_get_contents('a_nice_image.jpg');
-$encoded_payload = Base62x::encode($payload)->get();
+## Development
 
-$client = new Client(['base_uri' => 'https://example.com/']);
-$response = $client->post('postRequest/', [
-    'form_params' => [
-        'encoded_image' => $encoded_payload
-    ]
-]);
-
-...
-
-// on another machine
-$encoded_payload = $request->get('encoded_image');
-$image = Base62x::decode($encoded_payload)->get();
-file_put_contents($image, 'a_nice_image_clone.jpg');
-
+```bash
+composer install
+composer test      # PHPUnit
+composer analyse   # PHPStan
+composer cs        # coding style check (composer fix to apply)
+composer ci        # everything
+infection          # mutation testing (https://infection.github.io), also run in CI
 ```
 
-### The library supports compressed Base62x encoding!
+See [CONTRIBUTING.md](CONTRIBUTING.md) and [CHANGELOG.md](CHANGELOG.md).
 
-While encoding in Base62x, you can also compress the payload.
+## Credits
 
-This is expecially useful if you're planning on sending huge arrays or huge data via GET or POST requests, that you need to be sure it would not trigger errors from one machine to another, or from one url to another.
+A big thank you goes to Wade Lau ([wadelau](https://github.com/wadelau), ufqi.com) for designing the Base62x encoding.
 
-**Important note**: while decoding and decompressing, you **don't need to specify the original compression algorithm**, because this information is saved in a "magic string" at the beginning of the encoded payload.
-So, if you don't have control over another machine where your payloads can end, you don't have to worry to communicate the other side what type of compression you're actually using. The `decode()` method will automagically take care of that.
+## License
 
-```php
-<?php
-use Mfonte\Base62x\Base62x;
-
-$payload = ['foo' => 'bar', 'bar' => ['foo1', 'foo2', 'foo3', 'fooman' => 'foobar'], 'barfoo' => [1,2,3,4,5,6,7,8,9,10]];
-try {
-    $encoded_payload = Base62x::encode($payload)->compress()->get();
-}
-catch(Exception $ex) {
-    // One Exception of Mfonte/Base62x/Exception/EncodeException
-    // or Mfonte/Base62x/Exception/InvalidParam
-    // or Mfonte/Base62x/Exception/CompressionException
-}
-
-$final_url = 'https://example.com/decodetest/?data=' . $encoded_payload;
-
-...
-
-// on the "decodetest" url ...
-$encoded_payload = (array_key_exists('data', $_GET) && strlen($_GET['data'])) ? $_GET['data'] : null;
-if(!empty($encoded_payload)) {
-    try {
-        // in the $decoded variable, you'll automagically get the original Array
-        $decoded = Base62x::decode($encoded_payload)->get();
-    }
-    catch(Exception $ex) {
-        // One Exception of Mfonte/Base62x/Exception/DecodeException or Mfonte/Base62x/Exception/InvalidParam
-    }
-}
-```
-
-### Available compression methods
-
-1. **Gzip**, encoding `zlib`, `deflate`, or `gzip`. Without any further instruction, the `compress()` method defaults to `gzip/zlib`
-2. **Huffman** via a dedicated PHP Huffman implementation. **This compression method is currently not working. Please, do not use it in production environments.**
-
-These parameters can be passed to the `compress()` method like so:
-
-```php
-<?php
-use Mfonte\Base62x\Base62x;
-
-$payload = 'Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.';
-
-try {
-    $gzip_default = Base62x::encode($payload)->compress()->get(); // alias of compress('gzip', 'gzip')
-    $gzip_gzip_encoded = Base62x::encode($payload)->compress('gzip', 'gzip')->get();
-    $gzip_zlib_encoded = Base62x::encode($payload)->compress('gzip', 'zlib')->get();
-    $gzip_deflate_encoded = Base62x::encode($payload)->compress('gzip', 'deflate')->get();
-
-    // you DON'T NEED to call decompress() because the compression method is "saved" inside the
-    // encoded payload into a "magic string"
-    $decoded = Base62x::decode($gzip_default)->get();
-}
-catch(Exception $ex) {
-    // One Exception of Mfonte/Base62x/Exception/EncodeException
-    // or Mfonte/Base62x/Exception/InvalidParam
-    // or Mfonte/Base62x/Exception/CompressionException
-}
-```
-
-### Encryption
-
-As of version 1.2 this library support **encryption**.
-
-The encryption **can be chained** with compression.
-
-```php
-<?php
-use Mfonte\Base62x\Base62x;
-
-$payload = 'my_payload';
-$key = 'a_very_secret_string';
-
-try {
-    $encoded_and_crypted = Base62x::encode($payload)->encrypt($key)->get();
-    $encoded_and_compressed_and_crypted = Base62x::encode($payload)->encrypt($key)->compress()->get();
-
-    // to perform decryption, you must pass in the original $key
-    $decrypted = Base62x::decode($payload)->decrypt($key)->get();
-}
-catch(Exception $ex) {
-    // One Exception of Mfonte/Base62x/Exception/EncodeException
-    // or Mfonte/Base62x/Exception/InvalidParam
-    // or Mfonte/Base62x/Exception/CompressionException
-    // or Mfonte/Base62x/Exception/CryptException
-}
-```
-
-### Testing
-
-Simply run `composer install` over this module's installation directory.
-
-Then, run `composer test` to run all the tests.
-
-Some tests **may fail** as **testEncodingWithAllAvailableEncryptionAlgorithms** performs a check over all available **openssl_get_cipher_methods()** installed on your environment. A possible example of failure is `Encryption method "id-aes128-CCM" is either unsupported in your PHP installation or not a valid encryption algorithm.`
-
-### TODO
-
-- [ ] Fix **Huffman compression**
-- [ ] Add **Bzip2 compression**
-
-### Contributing
-
-If you want to contribute to this project, please use php-cs-fixer to format your code to PSR standards and rules
-specified in the configuration file `.php-cs-fixer.dist.php` provided in this repository.
-Thank you!
-
-### Thank you's
-
-A big thank you goes to wadelau _[Wade Lau at ufqi.com]_ for implementing such an useful encoding pattern.
+Apache License 2.0. See [LICENSE.txt](LICENSE.txt).

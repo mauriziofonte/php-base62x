@@ -1,7 +1,10 @@
-vendor/*
-composer.lock
-clover.xml
-.php_cs.cache
-.php-cs-fixer.cache
-.phpunit.result.cache
-.phpunit.xml.dist
+/vendor/
+/composer.lock
+/clover.xml
+/coverage/
+/.php-cs-fixer.cache
+/.phpunit.result.cache
+/.phpunit.cache/
+/phpunit.xml
+/phpstan.neon
+/build/
