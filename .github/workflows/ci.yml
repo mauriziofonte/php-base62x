@@ -26,7 +26,7 @@ jobs:
           - php: '7.2'
             dependencies: lowest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: shivammathur/setup-php@v2
         with:
@@ -43,7 +43,7 @@ jobs:
         if: matrix.php == '7.2'
         run: composer require --dev --no-update --no-interaction "vlucas/phpdotenv:^4.1"
 
-      - uses: ramsey/composer-install@v3
+      - uses: ramsey/composer-install@v4
         with:
           dependency-versions: ${{ matrix.dependencies }}
 
@@ -54,7 +54,7 @@ jobs:
     name: Optional compression extensions (zstd, brotli)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: shivammathur/setup-php@v2
         with:
@@ -63,7 +63,7 @@ jobs:
           coverage: none
           tools: composer:v2
 
-      - uses: ramsey/composer-install@v3
+      - uses: ramsey/composer-install@v4
 
       - name: Check that the extensions are loaded
         run: php -r 'foreach (["bz2", "zstd", "brotli", "sodium"] as $e) { if (!extension_loaded($e)) { fwrite(STDERR, "missing ext-$e\n"); exit(1); } }'
@@ -75,7 +75,7 @@ jobs:
     name: Static analysis & coding style
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: shivammathur/setup-php@v2
         with:
@@ -84,7 +84,7 @@ jobs:
           coverage: none
           tools: composer:v2
 
-      - uses: ramsey/composer-install@v3
+      - uses: ramsey/composer-install@v4
 
       - name: PHPStan
         run: composer analyse -- --no-progress --error-format=github
@@ -98,7 +98,7 @@ jobs:
     name: Code coverage
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: shivammathur/setup-php@v2
         with:
@@ -107,7 +107,7 @@ jobs:
           coverage: pcov
           tools: composer:v2
 
-      - uses: ramsey/composer-install@v3
+      - uses: ramsey/composer-install@v4
 
       - name: Run test suite with coverage
         run: vendor/bin/phpunit --coverage-text --coverage-clover=clover.xml
@@ -116,7 +116,7 @@ jobs:
     name: Mutation testing
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: shivammathur/setup-php@v2
         with:
@@ -125,7 +125,7 @@ jobs:
           coverage: pcov
           tools: composer:v2
 
-      - uses: ramsey/composer-install@v3
+      - uses: ramsey/composer-install@v4
 
       - name: Install Infection
         run: |
